@@ -182,17 +182,18 @@ with st.sidebar:
     if use_llm and not has_creds:
         st.warning("No AI key found, so the backup scoring rules will be used.")
 
-# Thin AI-connection bar above the title.
-bar_text, bar_button = st.columns([12, 1], vertical_alignment="center")
-if not key.present:
-    bar_text.caption("🔴 **AI connection:** no key loaded, so the backup scoring rules are used. "
-                     "Add `ANTHROPIC_API_KEY` to `.streamlit/secrets.toml` and restart.")
-elif key_result.ok:
-    bar_text.caption(f"🟢 **AI connection:** key `{key.masked}` accepted · {MODEL} available")
-else:
-    bar_text.caption(f"🟠 **AI connection:** key `{key.masked}` loaded but not working ({key_result.message})")
-if key.present:
-    bar_button.button("Re-check", type="tertiary", on_click=lambda: key_checks.pop(key.masked, None),
+# Small AI-connection box at the bottom of the Control room.
+with st.sidebar:
+    with st.container(border=True):
+        if not key.present:
+            st.caption("🔴 **AI connection:** no key loaded, so the backup scoring rules are used. "
+                       "Add `ANTHROPIC_API_KEY` to `.streamlit/secrets.toml` and restart.")
+        elif key_result.ok:
+            st.caption(f"🟢 **AI connection:** key `{key.masked}` accepted · {MODEL} available")
+        else:
+            st.caption(f"🟠 **AI connection:** key `{key.masked}` not working ({key_result.message})")
+        if key.present:
+            st.button("Re-check key", type="tertiary", on_click=lambda: key_checks.pop(key.masked, None),
                       help="Verify the AI key with Anthropic again (uses no tokens).")
 
 st.title("Meridian Summit · Consent-Gated Sponsor Matchmaker")

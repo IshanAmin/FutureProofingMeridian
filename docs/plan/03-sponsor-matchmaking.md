@@ -17,7 +17,7 @@ using only attendees the gate has passed.
 | 3.4 Output checks | Drop and flag any attendee id the model returns that wasn't in the consented set | `dropped_ids` | Done |
 | 3.5 Offline fallback | Transparent rule-based scorer with the same output shape, used with no key or on any failure | `offline_score()` | Done |
 | 3.6 UI | Run gate, then match brief; show the exact payload the model saw and who was blocked | Tab ③ | Done |
-| 3.7 Key status | A thin bar above the title shows whether an API key is loaded (last 4 characters only) and whether Anthropic accepts it, with a Re-check button | `credentials.py`, top bar | Done |
+| 3.7 Key status | A small box at the bottom of the Control room shows whether an API key is loaded (last 4 characters only) and whether Anthropic accepts it, with a Re-check button | `credentials.py`, sidebar | Done |
 
 ## Decisions
 
