@@ -61,24 +61,17 @@ state = reconcile(sources, AS_OF, extra_attendees=[r.attendee for r in registrat
 slack = sources["ops_slack"]["messages"]
 
 # ---------------------------------------------------------------- sidebar: operator controls
-with st.sidebar:
-    st.subheader("AI connection")
-    key = detect_key()
-    if not key.present:
-        st.error("🔴 No key loaded\n\nPut it in `.streamlit/secrets.toml` (or `export ANTHROPIC_API_KEY=...`), then restart the app.")
-    else:
-        checks = st.session_state.setdefault("key_checks", {})
-        if key.masked not in checks or st.button("Re-check key"):
-            with st.spinner("Verifying key with Anthropic…"):
-                checks[key.masked] = verify_key()
-        result = checks[key.masked]
-        if result.ok:
-            st.success(f"🟢 Key loaded `{key.masked}`\n\n{result.message}")
-        else:
-            st.warning(f"🟠 Key loaded `{key.masked}`, but not working\n\n{result.message}")
-    st.divider()
+# ---------------------------------------------------------------- AI connection (checked once per key)
+key = detect_key()
+key_checks = st.session_state.setdefault("key_checks", {})
+if key.present and key.masked not in key_checks:
+    with st.spinner("Verifying AI key with Anthropic…"):
+        key_checks[key.masked] = verify_key()
+key_result = key_checks.get(key.masked) if key.present else None
 
-    st.header("Demo controls")
+with st.sidebar:
+    st.title("🎛️ Control room")
+    st.subheader("Demo controls")
     st.caption("🧪 **Simulation:** the frozen clock and the replay slider act out one demo day. "
                "The stop button, the automatic shut-off and the AI backup are real controls "
                "Meridian's ops team would have in the live product.")
@@ -188,6 +181,19 @@ with st.sidebar:
     use_llm = engine.startswith("Claude")
     if use_llm and not has_creds:
         st.warning("No AI key found, so the backup scoring rules will be used.")
+
+# Thin AI-connection bar above the title.
+bar_text, bar_button = st.columns([12, 1], vertical_alignment="center")
+if not key.present:
+    bar_text.caption("🔴 **AI connection:** no key loaded, so the backup scoring rules are used. "
+                     "Add `ANTHROPIC_API_KEY` to `.streamlit/secrets.toml` and restart.")
+elif key_result.ok:
+    bar_text.caption(f"🟢 **AI connection:** key `{key.masked}` accepted · {MODEL} available")
+else:
+    bar_text.caption(f"🟠 **AI connection:** key `{key.masked}` loaded but not working ({key_result.message})")
+if key.present:
+    bar_button.button("Re-check", type="tertiary", on_click=lambda: key_checks.pop(key.masked, None),
+                      help="Verify the AI key with Anthropic again (uses no tokens).")
 
 st.title("Meridian Summit · Consent-Gated Sponsor Matchmaker")
 st.caption("Phase 1 · Platinum sponsors only · No AI runs without consent")
