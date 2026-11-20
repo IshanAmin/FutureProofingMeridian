@@ -33,6 +33,12 @@ def _ts(value: str) -> datetime:
     return datetime.fromisoformat(value.replace("Z", "+00:00"))
 
 
+def highlight_revoked(value) -> str:
+    """Red cell for revoked consent, so withdrawals stand out in the ledger and timeline."""
+    return ("background-color: rgba(218, 54, 51, 0.30); font-weight: 600"
+            if value in ("revoked", "revoke") else "")
+
+
 def log_audit(rows: list[dict]) -> None:
     st.session_state.setdefault("audit_log", []).extend(rows)
 
@@ -238,7 +244,8 @@ with tab_ledger:
     st.markdown("#### Master Consent Ledger")
     st.caption("Latest event per (attendee, sponsor) wins across all four tools that record consent. "
                "Grants older than 365 days expire.")
-    st.dataframe(pd.DataFrame(ledger_rows(state)), hide_index=True, width="stretch")
+    st.dataframe(pd.DataFrame(ledger_rows(state)).style.map(highlight_revoked, subset=["Consent Status"]),
+                 hide_index=True, width="stretch")
 
     with st.expander("Unified attendee view"):
         st.dataframe(pd.DataFrame([{
@@ -254,7 +261,8 @@ with tab_ledger:
         st.dataframe(pd.DataFrame([{
             "At": ev.at.strftime("%Y-%m-%d %H:%M"), "Attendee": ev.attendee_id,
             "Sponsor": ev.sponsor_id, "Action": ev.action, "Source": ev.source, "Ref": ev.ref,
-        } for ev in state.consent_events]), hide_index=True, width="stretch")
+        } for ev in state.consent_events]).style.map(highlight_revoked, subset=["Action"]),
+            hide_index=True, width="stretch")
 
 # ---------------------------------------------------------------- 2. gate + audit
 with tab_gate:
