@@ -214,3 +214,11 @@ def test_custom_safety_template_requires_a_named_author():
     t = safety_alerts.make_custom_template("Shuttle", "Shuttles suspended until 15:00.", "Dana Reyes")
     assert t["added_by"] == "Dana Reyes" and t["origin"] == "Human-written"
     assert t["text"] == "Shuttles suspended until 15:00."            # stored exactly as typed
+
+
+def test_pass_through_estimate_keeps_week_5_payback():
+    from meridian.roi import RoiInputs, compute, estimate_pass_through
+    est = estimate_pass_through()
+    assert est["rounded_usd"] == 15_000 and est["total_usd"] <= est["rounded_usd"]
+    r = compute(RoiInputs(pass_through_costs=est["rounded_usd"]))
+    assert r.net_benefit == 211_000 and r.payback_week == 5 and r.platinum_needed_to_break_even == 3

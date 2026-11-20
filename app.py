@@ -21,7 +21,8 @@ from meridian.data_loader import load_sources
 from meridian.gate import evaluate_sponsor
 from meridian.ledger import ledger_rows, reconcile
 from meridian.matchmaker import run_matchmaking
-from meridian.roi import CONTRACT_LOCK_WEEK, EVENT_WEEK, RoiInputs, compute, cumulative_timeline
+from meridian.roi import (CONTRACT_LOCK_WEEK, EVENT_WEEK, PASS_THROUGH_ASSUMPTIONS, RoiInputs, compute,
+                          cumulative_timeline, estimate_pass_through)
 
 st.set_page_config(page_title="Meridian · Consent-Gated Matchmaker", layout="wide")
 
@@ -571,8 +572,25 @@ with tab_roi:
     left, right = st.columns([1, 2])
     with left:
         fee = st.number_input("Phase 1 fee ($) - (Paid to Future Proofing)", value=650_000, step=25_000)
-        pass_through = st.number_input("Messaging + inference pass-through ($, estimate)", value=0, step=5_000,
-                                       help="Passed through to Meridian on top of the fee. Set your estimate.")
+        est = estimate_pass_through()
+        pass_through = st.number_input("Messaging + AI costs, paid by Meridian ($, estimate)",
+                                       value=int(est["rounded_usd"]), step=5_000,
+                                       help="Meridian pays these on top of the $650K fee. Default is the planning "
+                                            "estimate below; replace with real volumes and vendor rates.")
+        with st.expander(f"How we estimated ${est['rounded_usd']:,.0f}"):
+            a = PASS_THROUGH_ASSUMPTIONS
+            st.markdown(
+                f"**Messaging: about ${est['messaging_usd']:,.0f}**  \n"
+                f"{a['in_person_attendees']:,} attendees × {a['share_consenting_to_a_platinum_sponsor']:.0%} say yes "
+                f"to a Platinum sponsor × {a['sponsor_messages_per_consenting_attendee']} messages each "
+                f"= {est['messages']:,.0f} messages. Mix: WhatsApp 40% at $0.05, SMS 20% at $0.02, email 40% at $0.001.\n\n"
+                f"**AI matchmaking: about ${est['ai_usd']:,.0f}**  \n"
+                f"{a['platinum_sponsors']} Platinum sponsors × {a['match_runs_per_sponsor']} weekly runs × "
+                f"${a['ai_cost_per_match_run_usd']:.2f} per run on {MODEL}.\n\n"
+                f"**Subtotal ${est['subtotal_usd']:,.0f} × {a['contingency_multiplier']:.0f} for contingency "
+                f"= ${est['total_usd']:,.0f}, rounded up to ${est['rounded_usd']:,.0f}.**"
+            )
+            st.caption("Planning assumptions, not quotes. WhatsApp and SMS prices vary a lot by country.")
         st.markdown("**Support lever**")
         payroll = st.number_input("Event-week support payroll ($)", value=420_000, step=10_000)
         support_pct = st.slider("Support cost reduction (%)", 0, 60, 30)
@@ -598,8 +616,10 @@ with tab_roi:
         net_sign = "-" if r.net_benefit < 0 else ""
         m2.metric("Net vs fee", f"{net_sign}${abs(r.net_benefit):,.0f}", delta=f"{r.roi_pct:.0f}% ROI")
         m3.metric("Payback multiple", f"{r.payback_multiple:.2f}×")
-        m4.metric("Payback", {CONTRACT_LOCK_WEEK: f"Week {CONTRACT_LOCK_WEEK} (contract lock)",
-                              EVENT_WEEK: f"Week {EVENT_WEEK} (event week)"}.get(r.payback_week, "Not in Year 1"))
+        m4.metric("Payback", f"Week {r.payback_week}" if r.payback_week else "Not in Year 1")
+        m4.caption({CONTRACT_LOCK_WEEK: "When 2027 sponsor contracts lock",
+                    EVENT_WEEK: "Event week, when support savings land"}.get(r.payback_week,
+                                                                            "Benefits don't cover the costs"))
 
         if r.payback_week is None:
             st.error(f"Does not pay back. Shortfall ${-r.net_benefit:,.0f}.")
