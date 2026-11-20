@@ -62,7 +62,7 @@ slack = sources["ops_slack"]["messages"]
 
 # ---------------------------------------------------------------- sidebar: operator controls
 with st.sidebar:
-    st.subheader("Anthropic API key")
+    st.subheader("AI connection")
     key = detect_key()
     if not key.present:
         st.error("🔴 No key loaded\n\nPut it in `.streamlit/secrets.toml` (or `export ANTHROPIC_API_KEY=...`), then restart the app.")
@@ -78,36 +78,48 @@ with st.sidebar:
             st.warning(f"🟠 Key loaded `{key.masked}`, but not working\n\n{result.message}")
     st.divider()
 
-    st.header("Operator controls")
-    st.caption(f"Demo clock: {AS_OF:%Y-%m-%d %H:%M} UTC")
+    st.header("Demo controls")
+    st.caption("🧪 **Simulation:** the frozen clock and the replay slider act out one demo day. "
+               "The stop button, the automatic shut-off and the AI backup are real controls "
+               "Meridian's ops team would have in the live product.")
+    st.caption(f"Demo day frozen at {AS_OF:%d %b %Y, %H:%M} UTC")
 
     rollup_times = [m["ts"] for m in slack if m.get("metrics")]
     replay_ts = st.select_slider(
-        "Replay #sponsor-comms-monitor through",
+        "Replay the day: hourly complaint reports",
         options=rollup_times,
         value=rollup_times[-2],
         format_func=lambda t: t[11:16] + " UTC",
-        help="Move to 13:00 to watch the circuit breaker auto-trip on the opt-out spike.",
+        help="Each step is one hourly report of how many people unsubscribed or flagged sponsor messages "
+             "as spam. Slide to 13:00 to see a bad hour trigger the automatic shut-off.",
     )
-    kill_switch = st.toggle("🛑 Global kill switch (sponsor outbound)", value=False)
+    kill_switch = st.toggle(
+        "🛑 Stop all sponsor messages", value=False,
+        help="The manual off switch. One click stops every sponsor message. Safety alerts are not affected.",
+    )
     breaker = evaluate_breaker(slack, _ts(replay_ts), kill_switch)
 
-    if breaker.tripped:
-        st.error(f"Outbound HALTED\n\n{breaker.reason}")
+    limit = f"{OPT_OUT_TRIP_RATE:.0%}"
+    if breaker.manual_kill:
+        st.error("⛔ **Sponsor messages OFF**\n\nStopped by hand with the stop button.")
+    elif breaker.tripped:
+        st.error(f"⛔ **Sponsor messages OFF**\n\nStopped automatically: complaints reached "
+                 f"{breaker.latest_rate:.1%} in the last hour (auto-stop at {limit}).")
     else:
-        st.success(f"Outbound healthy · latest opt-out/spam rate {breaker.latest_rate:.2%} "
-                   f"(trips > {OPT_OUT_TRIP_RATE:.0%})")
+        st.success(f"✅ **Sponsor messages ON**\n\nComplaints {breaker.latest_rate:.1%} in the last hour "
+                   f"(auto-stop at {limit}).")
 
     has_creds = key.present
     engine = st.radio(
-        "Matchmaking engine",
-        [f"Claude ({MODEL})", "Offline rule-based scorer"],
+        "Who ranks attendees for sponsors",
+        [f"Claude AI ({MODEL})", "Backup: simple scoring rules"],
         index=0 if has_creds else 1,
-        help="Without ANTHROPIC_API_KEY the app uses a transparent rule-based scorer with the same output shape.",
+        help="If the AI is unavailable, simple rules (job title, shared topics) rank attendees instead, "
+             "so the product and the demo never depend on the AI being up.",
     )
     use_llm = engine.startswith("Claude")
     if use_llm and not has_creds:
-        st.warning("No ANTHROPIC_API_KEY found; calls will fall back to the offline scorer.")
+        st.warning("No AI key found, so the backup scoring rules will be used.")
 
 st.title("Meridian Summit · Consent-Gated Sponsor Matchmaker")
 st.caption("Phase 1 · Platinum sponsors only · No AI runs without consent")
