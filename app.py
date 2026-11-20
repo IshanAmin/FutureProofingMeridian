@@ -402,10 +402,6 @@ with tab_match:
 
         with st.expander("Exactly what the matchmaker saw (minimized: no names, emails or companies)"):
             st.json(run.payload)
-        with st.expander(f"Blocked by gate before matching ({len(gate) - len(passed)})"):
-            st.dataframe(pd.DataFrame([{"Attendee": d.attendee_name, "Reason": d.reason}
-                                       for d in gate if not d.allowed]),
-                         hide_index=True, width="stretch")
 
 # ---------------------------------------------------------------- 4. rollback + safety
 with tab_ops:
