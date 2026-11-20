@@ -14,7 +14,7 @@ check and a plain-language reason, so legal can audit any message.
 | 2.1 Gate rules | The three checks from the locked strategy | `evaluate()` | Done |
 | 2.2 System checks | Add breaker status and staged rollout (Platinum only) ahead of the consent checks | `breaker_ok`, `sponsor_in_rollout` | Done |
 | 2.3 Reasons | One readable reason per decision, naming the tool that decided it | `GateDecision.reason` | Done |
-| 2.4 Audit log | Record every check per decision; keep a session log; download as CSV | `as_audit_row()`, tab ② | Done |
+| 2.4 Audit log | Record every check per decision automatically (once per new set of outcomes, so refreshes add no duplicates); keep a session log; download as CSV | `as_audit_row()`, tab ② | Done |
 | 2.5 Edge-case proof | Expected vs actual for every brief edge case, on screen and in tests | Tab ② table, parametrized test | Done |
 
 ## The gate

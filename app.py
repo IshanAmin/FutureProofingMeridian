@@ -297,7 +297,12 @@ with tab_gate:
         format_func=lambda s: f"{state.sponsors[s]['name']} ({state.sponsors[s]['tier']})",
     )
     decisions = evaluate_sponsor(state, sponsor_id, breaker)
-    if st.button("Record this evaluation to the audit log"):
+    # Log automatically, but only when this sponsor's outcomes are new (first view, or something changed
+    # such as the breaker or a new registration), so page refreshes don't add duplicate rows.
+    outcome = (sponsor_id, tuple((d.attendee_id, d.allowed, d.reason) for d in decisions))
+    logged = st.session_state.setdefault("gate_outcomes_logged", set())
+    if outcome not in logged:
+        logged.add(outcome)
         log_audit([d.as_audit_row() for d in decisions])
 
     passed = sum(d.allowed for d in decisions)
@@ -305,6 +310,7 @@ with tab_gate:
     c1.metric("Passed", passed)
     c2.metric("Blocked", len(decisions) - passed)
 
+    st.markdown("#### Decision table")
     audit_df = pd.DataFrame([d.as_audit_row() for d in decisions])
     st.dataframe(
         audit_df.style.apply(
@@ -340,7 +346,8 @@ with tab_gate:
         st.download_button("Download audit log (CSV)", log_df.to_csv(index=False),
                            "consent_gate_audit.csv", "text/csv")
     else:
-        st.caption("Empty. Gate evaluations are appended here when recorded or when a match brief is generated.")
+        st.caption("Empty. Gate decisions are added here automatically when you pick a sponsor "
+                   "or generate a match brief.")
 
 # ---------------------------------------------------------------- 3. matchmaking
 with tab_match:
