@@ -206,3 +206,11 @@ def test_latched_breaker_stays_tripped_until_switched_off():
     assert not evaluate(STATE, "A001", "SP03", still_on).allowed
     reset = latched_breaker(False, None, healthy_now)
     assert not reset.tripped and evaluate(STATE, "A001", "SP03", reset).allowed
+
+
+def test_custom_safety_template_requires_a_named_author():
+    with pytest.raises(ValueError, match="your name"):
+        safety_alerts.make_custom_template("Shuttle", "Shuttles suspended until 15:00.", "  ")
+    t = safety_alerts.make_custom_template("Shuttle", "Shuttles suspended until 15:00.", "Dana Reyes")
+    assert t["added_by"] == "Dana Reyes" and t["origin"] == "Human-written"
+    assert t["text"] == "Shuttles suspended until 15:00."            # stored exactly as typed

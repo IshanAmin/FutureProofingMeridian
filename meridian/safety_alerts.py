@@ -5,6 +5,7 @@ Templates are approved wording; only enumerated, validated fields may be substit
 Safety alerts do not pass through the sponsor consent gate or the sponsor circuit breaker.
 """
 
+from datetime import datetime, timezone
 from string import Template
 
 VENUES = {
@@ -45,3 +46,26 @@ def render(template_id: str, **fields: str) -> str:
             raise ValueError(f"Shelter point must be one of {sorted(SHELTER_POINTS)}")
         fields["shelter_point"] = SHELTER_POINTS[fields["shelter_point"]]
     return TEMPLATES[template_id].substitute(**fields)
+
+
+MAX_CUSTOM_LENGTH = 480   # keeps a custom alert within a few SMS segments
+
+
+def make_custom_template(title: str, text: str, author: str, now: datetime | None = None) -> dict:
+    """A safety message typed by a named person. Stored as written; never generated or rewritten."""
+    title, text, author = title.strip(), text.strip(), author.strip()
+    if not author:
+        raise ValueError("Enter your name. Every custom safety message records who wrote it.")
+    if not title:
+        raise ValueError("Give the template a short name.")
+    if not text:
+        raise ValueError("Type the message.")
+    if len(text) > MAX_CUSTOM_LENGTH:
+        raise ValueError(f"Keep the message under {MAX_CUSTOM_LENGTH} characters.")
+    return {
+        "title": title,
+        "text": text,
+        "added_by": author,
+        "added_at": (now or datetime.now(timezone.utc)).strftime("%Y-%m-%d %H:%M:%S UTC"),
+        "origin": "Human-written",
+    }

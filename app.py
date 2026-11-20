@@ -499,16 +499,68 @@ with tab_ops:
     st.subheader("Safety alerts (outside the AI layer)")
     st.caption("Human-written templates only. No model call, not affected by the circuit breaker, "
                "fields restricted to enumerated venues and shelter points.")
-    template_id = st.selectbox("Template", list(safety_alerts.TEMPLATES))
-    if template_id == "severe_weather_shelter":
-        fields = {"shelter_point": st.selectbox("Shelter point", list(safety_alerts.SHELTER_POINTS))}
+    custom_templates = st.session_state.setdefault("custom_safety_templates", [])
+
+    builtin_ids = list(safety_alerts.TEMPLATES)
+    custom_ids = [f"custom:{i}" for i in range(len(custom_templates))]
+    template_id = st.selectbox(
+        "Template", builtin_ids + custom_ids,
+        format_func=lambda t: (f"✍️ {custom_templates[int(t.split(':')[1])]['title']} "
+                               f"(by {custom_templates[int(t.split(':')[1])]['added_by']})")
+        if t.startswith("custom:") else t,
+    )
+    if template_id.startswith("custom:"):
+        chosen = custom_templates[int(template_id.split(":")[1])]
+        st.caption(f"✍️ Human-written by {chosen['added_by']} on {chosen['added_at']}. Sent exactly as typed.")
+        st.code(chosen["text"], language=None)
     else:
-        fields = {
-            "session_title": st.text_input("Session title (from schedule system)", "Opening Keynote"),
-            "venue": st.selectbox("Venue", list(safety_alerts.VENUES)),
-            "room": st.text_input("Room", "Ballroom A"),
-        }
-    st.code(safety_alerts.render(template_id, **fields), language=None)
+        if template_id == "severe_weather_shelter":
+            fields = {"shelter_point": st.selectbox("Shelter point", list(safety_alerts.SHELTER_POINTS))}
+        else:
+            fields = {
+                "session_title": st.text_input("Session title (from schedule system)", "Opening Keynote"),
+                "venue": st.selectbox("Venue", list(safety_alerts.VENUES)),
+                "room": st.text_input("Room", "Ballroom A"),
+            }
+        st.code(safety_alerts.render(template_id, **fields), language=None)
+
+    def _add_custom_template() -> None:
+        try:
+            template = safety_alerts.make_custom_template(
+                st.session_state.get("custom_title", ""), st.session_state.get("custom_text", ""),
+                st.session_state.get("custom_author", ""))
+        except ValueError as exc:
+            st.session_state["custom_error"] = str(exc)
+            return
+        st.session_state["custom_safety_templates"].append(template)
+        st.session_state["custom_error"] = None
+        st.session_state["adding_custom"] = False
+        for k in ("custom_title", "custom_text", "custom_author"):
+            st.session_state[k] = ""
+
+    if not st.session_state.get("adding_custom"):
+        if st.button("➕ Add custom message"):
+            st.session_state["adding_custom"] = True
+            st.rerun()
+    else:
+        with st.form("custom_safety_template", border=True):
+            st.markdown("**New custom safety message**")
+            st.text_input("Template name", key="custom_title", placeholder="e.g. Shuttle suspended")
+            st.text_area("Message (sent exactly as typed)", key="custom_text", max_chars=safety_alerts.MAX_CUSTOM_LENGTH)
+            st.text_input("Your name * (recorded as the author)", key="custom_author")
+            add_col, cancel_col = st.columns(2)
+            add_col.form_submit_button("Add to template list", type="primary", on_click=_add_custom_template)
+            cancel_col.form_submit_button("Cancel", on_click=lambda: st.session_state.update(
+                adding_custom=False, custom_error=None))
+        if st.session_state.get("custom_error"):
+            st.error(st.session_state["custom_error"])
+
+    if custom_templates:
+        st.markdown("#### Custom template log")
+        st.caption("Every custom safety message, who wrote it and when. Proof the wording is human-written.")
+        st.dataframe(pd.DataFrame([{"Template": t["title"], "Message": t["text"], "Added by": t["added_by"],
+                                    "Added at": t["added_at"], "Origin": t["origin"]} for t in custom_templates]),
+                     hide_index=True, width="stretch")
 
 # ---------------------------------------------------------------- 5. ROI simulator
 with tab_roi:

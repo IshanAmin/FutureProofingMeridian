@@ -19,6 +19,7 @@ Safety alerts must never depend on the AI layer.
 | 4.6 Safety alerts | Human-written templates only, enumerated venues and shelter points, not gated, not affected by the circuit breaker | `safety_alerts.py` | Done |
 | 4.7 One latching switch | Automatic trip and manual switch are the same toggle: an auto-trip flips it on, and it stays on until a person switches it off, even if complaints fall | `latched_breaker()`, sidebar | Done |
 | 4.8 Named manual override | Switching the breaker off needs a person's name; trying to flip the toggle off bounces back. Every trip, manual switch-on and override is logged with time, name, report hour and complaint rate | Sidebar override form, breaker log in tab ④ (CSV) | Done |
+| 4.9 Custom safety messages | "Add custom message" lets a named person type a new safety template; it is stored exactly as typed, marked human-written, and listed in a custom template log | `make_custom_template()`, tab ④ | Done |
 
 ## Decisions
 
@@ -36,3 +37,4 @@ Safety alerts must never depend on the AI layer.
 - `test_latched_breaker_stays_tripped_until_switched_off`
 - `test_safety_module_is_isolated_from_ai_layer`, which checks that the module imports nothing from the AI layer.
 - `test_safety_templates_reject_unknown_venue`
+- `test_custom_safety_template_requires_a_named_author`
