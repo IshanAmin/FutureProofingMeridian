@@ -24,7 +24,7 @@ output shape. The gate, ledger, audit log and rollback controls work the same in
 | ① Reconciliation & Consent Ledger | Six tools with no shared state merge into one attendee view. Consent events from four tools resolve to one ledger: latest event wins, grants expire after 365 days. |
 | ② Consent Gate & Audit Log | Plain `if/else` gate: breaker healthy, sponsor in rollout, sponsor-specific consent, channel opt-in, fewer than 2 sponsor sends in 7 days. Every decision records each check and a reason. The audit log downloads as CSV. |
 | ③ Sponsor Matchmaking | Only gate-passed attendees reach the matchmaker, with minimized fields (no name, email or company). Any id the model returns that wasn't in the consented set is dropped and flagged. |
-| ④ Rollback & Safety | Replay the ops Slack feed: the breaker auto-trips at a 2.60% opt-out/spam rate (threshold 2%). There's also a manual kill switch. In both cases the app falls back to a static pull-only directory. Safety alerts use static human-written templates with enumerated venues and never touch the AI layer. |
+| ④ Rollback & Safety | Replay the ops Slack feed: the breaker auto-trips at a 2.60% opt-out/spam rate (threshold 2%). A person can also switch the breaker on by hand. Once on, it stays on until someone uses Manual override and enters their name, which is logged in tab ④. In both cases the app falls back to a static pull-only directory. Safety alerts use static human-written templates with enumerated venues and never touch the AI layer. |
 | ⑤ ROI Simulator | Meridian's payback on the $650K fee from support savings and retained Platinum revenue, with the week each benefit lands. |
 
 ## Edge cases in the synthetic data
@@ -49,7 +49,7 @@ meridian/config.py         every threshold in one place (cap, TTL, trip rate, ro
 meridian/data_loader.py    reads the six tool exports
 meridian/ledger.py         reconciliation + master consent ledger
 meridian/gate.py           deterministic consent gate + audit rows
-meridian/circuit_breaker.py  auto-trip on opt-out/spam rate + manual kill switch
+meridian/circuit_breaker.py  latching breaker: auto-trips on opt-out/spam rate or by hand
 meridian/matchmaker.py     Claude (claude-opus-5-5, structured output) or offline scorer
 meridian/safety_alerts.py  static safety templates; imports nothing from the AI layer
 meridian/registration.py   step 0: registration form → attendee record + per-sponsor consent events

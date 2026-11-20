@@ -45,3 +45,19 @@ def evaluate_breaker(slack_messages: list[dict], through: datetime, kill_switch:
         return BreakerState(True, f"Auto-tripped: opt-out/spam rate {rate:.2%} > {threshold:.0%}",
                             rate, latest["ts"], False)
     return BreakerState(False, "Healthy", rate, latest["ts"] if latest else None, False)
+
+
+def latched_breaker(switched_on: bool, cause: str | None, auto: BreakerState) -> BreakerState:
+    """Final breaker state for one operator-facing switch.
+
+    The switch latches: once complaints trip it ("auto") or a person flips it ("manual"),
+    sponsor outbound stays halted until a person switches it off, even if complaints fall.
+    `auto` is the latest reading from evaluate_breaker(..., kill_switch=False).
+    """
+    if not switched_on:
+        return BreakerState(False, "Healthy", auto.latest_rate, auto.window_ts, False)
+    if cause == "auto":
+        reason = f"Circuit breaker tripped automatically at {auto.window_ts[11:16] if auto.window_ts else '?'} UTC"
+    else:
+        reason = "Circuit breaker switched on by hand"
+    return BreakerState(True, reason, auto.latest_rate, auto.window_ts, cause != "auto")

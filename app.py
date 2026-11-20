@@ -4,14 +4,14 @@ Run:  streamlit run app.py
 """
 
 import os
-from datetime import datetime
+from datetime import datetime, timezone
 
 import pandas as pd
 import streamlit as st
 from streamlit.errors import StreamlitSecretNotFoundError
 
 from meridian import safety_alerts
-from meridian.circuit_breaker import evaluate_breaker
+from meridian.circuit_breaker import evaluate_breaker, latched_breaker
 from meridian.config import AS_OF, MODEL, OPT_OUT_TRIP_RATE, WEEKLY_SPONSOR_CAP
 from meridian import customer_view
 from meridian.credentials import detect_key, verify_key
@@ -93,21 +93,89 @@ with st.sidebar:
         help="Each step is one hourly report of how many people unsubscribed or flagged sponsor messages "
              "as spam. Slide to 13:00 to see a bad hour trigger the automatic shut-off.",
     )
-    kill_switch = st.toggle(
-        "🛑 Stop all sponsor messages", value=False,
-        help="The manual off switch. One click stops every sponsor message. Safety alerts are not affected.",
+    # One latching switch. Complaints above the limit switch it on automatically (once per bad
+    # hourly report); a person can also switch it on. Switching it off needs a named manual override.
+    auto = evaluate_breaker(slack, _ts(replay_ts))
+    st.session_state.setdefault("breaker_log", [])
+    tripped_windows = st.session_state.setdefault("breaker_tripped_windows", set())
+
+    def _log(action: str, by: str) -> None:
+        st.session_state["breaker_log"].append({
+            "Logged at (UTC)": datetime.now(timezone.utc).strftime("%Y-%m-%d %H:%M:%S"),
+            "Action": action,
+            "By": by,
+            "Report hour": f"{auto.window_ts[11:16]} UTC" if auto.window_ts else "-",
+            "Complaint rate": f"{auto.latest_rate:.1%}" if auto.latest_rate is not None else "-",
+        })
+
+    if auto.tripped and auto.window_ts not in tripped_windows:
+        tripped_windows.add(auto.window_ts)
+        if not st.session_state.get("breaker_on"):
+            st.session_state["breaker_on"] = True
+            st.session_state["breaker_cause"] = "auto"
+            st.session_state["breaker_trip_rate"] = auto.latest_rate
+            st.session_state["breaker_trip_window"] = auto.window_ts
+            _log("Tripped automatically", "System")
+
+    def _toggle_flipped() -> None:
+        if st.session_state["breaker_on"]:
+            st.session_state["breaker_cause"] = "manual"
+            st.session_state["override_error"] = None
+            _log("Switched on by hand", "Operator")
+        else:
+            # Switching off is only allowed through the named manual override.
+            st.session_state["breaker_on"] = True
+            st.session_state["override_error"] = "To switch the breaker off, use Manual override and enter your name."
+
+    def _manual_override() -> None:
+        name = st.session_state.get("override_name", "").strip()
+        if not name:
+            st.session_state["override_error"] = "Enter your name to override the breaker."
+            return
+        st.session_state["override_error"] = None
+        st.session_state["breaker_on"] = False
+        st.session_state["breaker_cause"] = None
+        st.session_state["override_by"] = name
+        st.session_state["override_name"] = ""
+        # Later bad reports can trip it again; the report on screen now counts as acknowledged.
+        st.session_state["breaker_tripped_windows"] = {auto.window_ts} if auto.tripped else set()
+        _log("Manual override: switched off", name)
+
+    switched_on = st.toggle(
+        "🛑 Circuit breaker", key="breaker_on", on_change=_toggle_flipped,
+        help="ON means every sponsor message is stopped. It switches on by itself when complaints pass "
+             f"{OPT_OUT_TRIP_RATE:.0%} in an hour, and anyone on ops can switch it on. Switching it off needs "
+             "a manual override with the person's name, which is logged.",
     )
-    breaker = evaluate_breaker(slack, _ts(replay_ts), kill_switch)
+    cause = st.session_state.get("breaker_cause")
+    breaker = latched_breaker(switched_on, cause, auto)
 
     limit = f"{OPT_OUT_TRIP_RATE:.0%}"
-    if breaker.manual_kill:
-        st.error("⛔ **Sponsor messages OFF**\n\nStopped by hand with the stop button.")
-    elif breaker.tripped:
-        st.error(f"⛔ **Sponsor messages OFF**\n\nStopped automatically: complaints reached "
-                 f"{breaker.latest_rate:.1%} in the last hour (auto-stop at {limit}).")
+    if switched_on and cause == "auto":
+        trip_at = st.session_state["breaker_trip_window"][11:16]
+        st.error(f"⛔ **Sponsor messages OFF**\n\nThe circuit breaker tripped automatically: complaints reached "
+                 f"{st.session_state['breaker_trip_rate']:.1%} in the {trip_at} UTC report (limit {limit}). "
+                 "It stays off until someone uses Manual override.")
+    elif switched_on:
+        st.error("⛔ **Sponsor messages OFF**\n\nThe circuit breaker was switched on by hand.")
+    elif auto.tripped:
+        st.warning(f"⚠️ **Sponsor messages ON, breaker overridden**\n\nComplaints are {auto.latest_rate:.1%}, "
+                   f"above the {limit} limit, but {st.session_state.get('override_by', 'a person')} "
+                   "overrode the breaker.")
     else:
-        st.success(f"✅ **Sponsor messages ON**\n\nComplaints {breaker.latest_rate:.1%} in the last hour "
-                   f"(auto-stop at {limit}).")
+        st.success(f"✅ **Sponsor messages ON**\n\nComplaints {auto.latest_rate:.1%} in the last hour "
+                   f"(breaker trips at {limit}).")
+
+    if switched_on:
+        with st.form("breaker_override", border=True):
+            st.markdown("**Manual override**")
+            st.text_input("Your name (recorded in the audit log)", key="override_name")
+            st.form_submit_button("Switch breaker off", on_click=_manual_override)
+        if st.session_state.get("override_error"):
+            st.error(st.session_state["override_error"])
+    n_logged = len(st.session_state["breaker_log"])
+    if n_logged:
+        st.caption(f"Breaker log: {n_logged} entr{'y' if n_logged == 1 else 'ies'}. Full log in tab ④.")
 
     has_creds = key.present
     engine = st.radio(
@@ -311,13 +379,23 @@ with tab_ops:
                                for m in slack if _ts(m["ts"]) <= _ts(replay_ts)]),
                  hide_index=True, width="stretch")
 
+    st.subheader("Circuit breaker log")
+    st.caption("Every automatic trip, manual switch-on and named manual override in this session.")
+    breaker_log = st.session_state.get("breaker_log", [])
+    if breaker_log:
+        log_df = pd.DataFrame(breaker_log)
+        st.dataframe(log_df, hide_index=True, width="stretch")
+        st.download_button("Download breaker log (CSV)", log_df.to_csv(index=False), "circuit_breaker_log.csv", "text/csv")
+    else:
+        st.caption("Empty. Slide the replay to 13:00 to trip the breaker.")
+
     st.subheader("Degraded mode: static pull-only sponsor directory")
     st.caption("Shown in the mobile app when outbound is halted. Attendees browse; nothing is pushed.")
     st.dataframe(pd.DataFrame([{"Sponsor": s["name"], "Tier": s["tier"], "Booth": s["booth"]}
                                for s in state.sponsors.values()]), hide_index=True, width="stretch")
 
     st.subheader("Safety alerts (outside the AI layer)")
-    st.caption("Human-written templates only. No model call, not affected by the sponsor kill switch, "
+    st.caption("Human-written templates only. No model call, not affected by the circuit breaker, "
                "fields restricted to enumerated venues and shelter points.")
     template_id = st.selectbox("Template", list(safety_alerts.TEMPLATES))
     if template_id == "severe_weather_shelter":
