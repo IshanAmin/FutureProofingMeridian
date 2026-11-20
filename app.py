@@ -3,7 +3,6 @@
 Run:  streamlit run app.py
 """
 
-import os
 from datetime import datetime
 
 import pandas as pd
@@ -12,10 +11,12 @@ import streamlit as st
 from meridian import safety_alerts
 from meridian.circuit_breaker import evaluate_breaker
 from meridian.config import AS_OF, MODEL, OPT_OUT_TRIP_RATE, WEEKLY_SPONSOR_CAP
+from meridian.credentials import detect_key, verify_key
 from meridian.data_loader import load_sources
 from meridian.gate import evaluate, evaluate_sponsor
 from meridian.ledger import ledger_rows, reconcile
 from meridian.matchmaker import run_matchmaking
+from meridian.roi import CONTRACT_LOCK_WEEK, EVENT_WEEK, RoiInputs, compute, cumulative_timeline
 
 st.set_page_config(page_title="Meridian · Consent-Gated Matchmaker", layout="wide")
 
@@ -39,6 +40,22 @@ slack = sources["ops_slack"]["messages"]
 
 # ---------------------------------------------------------------- sidebar: operator controls
 with st.sidebar:
+    st.subheader("Anthropic API key")
+    key = detect_key()
+    if not key.present:
+        st.error("🔴 No key loaded\n\nRun `export ANTHROPIC_API_KEY=...` in this terminal, then restart the app.")
+    else:
+        checks = st.session_state.setdefault("key_checks", {})
+        if key.masked not in checks or st.button("Re-check key"):
+            with st.spinner("Verifying key with Anthropic…"):
+                checks[key.masked] = verify_key()
+        result = checks[key.masked]
+        if result.ok:
+            st.success(f"🟢 Key loaded `{key.masked}`\n\n{result.message}")
+        else:
+            st.warning(f"🟠 Key loaded `{key.masked}`, but not working\n\n{result.message}")
+    st.divider()
+
     st.header("Operator controls")
     st.caption(f"Demo clock: {AS_OF:%Y-%m-%d %H:%M} UTC")
 
@@ -59,7 +76,7 @@ with st.sidebar:
         st.success(f"Outbound healthy · latest opt-out/spam rate {breaker.latest_rate:.2%} "
                    f"(trips > {OPT_OUT_TRIP_RATE:.0%})")
 
-    has_creds = bool(os.environ.get("ANTHROPIC_API_KEY") or os.environ.get("ANTHROPIC_AUTH_TOKEN"))
+    has_creds = key.present
     engine = st.radio(
         "Matchmaking engine",
         [f"Claude ({MODEL})", "Offline rule-based scorer"],
@@ -71,13 +88,14 @@ with st.sidebar:
         st.warning("No ANTHROPIC_API_KEY found; calls will fall back to the offline scorer.")
 
 st.title("Meridian Summit · Consent-Gated Sponsor Matchmaker")
-st.caption("Phase 1 wedge · Platinum sponsors only · deterministic consent gate runs before any model call")
+st.caption("Phase 1 · Platinum sponsors only · No AI runs without consent")
 
-tab_ledger, tab_gate, tab_match, tab_ops = st.tabs([
+tab_ledger, tab_gate, tab_match, tab_ops, tab_roi = st.tabs([
     "① Reconciliation & Consent Ledger",
     "② Consent Gate & Audit Log",
     "③ Sponsor Matchmaking",
     "④ Rollback & Safety",
+    "⑤ ROI Simulator",
 ])
 
 # ---------------------------------------------------------------- 1. reconciliation
@@ -273,3 +291,60 @@ with tab_ops:
             "room": st.text_input("Room", "Ballroom A"),
         }
     st.code(safety_alerts.render(template_id, **fields), language=None)
+
+# ---------------------------------------------------------------- 5. ROI simulator
+with tab_roi:
+    st.subheader("Phase 1 payback against the $650K fee")
+    st.caption("The CFO asked for support costs down 30%. That alone can't pay back the fee; "
+               "retaining sponsor revenue can. Every input is editable.")
+
+    left, right = st.columns([1, 2])
+    with left:
+        fee = st.number_input("Phase 1 fee ($) - (Paid to Future Proofing)", value=650_000, step=25_000)
+        pass_through = st.number_input("Messaging + inference pass-through ($, estimate)", value=0, step=5_000,
+                                       help="Passed through to Meridian on top of the fee. Set your estimate.")
+        st.markdown("**Support lever**")
+        payroll = st.number_input("Event-week support payroll ($)", value=420_000, step=10_000)
+        support_pct = st.slider("Support cost reduction (%)", 0, 60, 30)
+        st.markdown("**Sponsor retention lever**")
+        mode = st.radio("Model retention as", ["Platinum sponsors retained", "Portfolio renewal-rate lift"],
+                        horizontal=True)
+        platinum_n = st.slider("Additional Platinum sponsors retained ($250K each)", 0, 10, 3,
+                               disabled=mode != "Platinum sponsors retained")
+        lift = st.slider("Renewal-rate lift on $48M sponsor book (pp)", 0.0, 5.0, 1.5, 0.25,
+                         disabled=mode != "Portfolio renewal-rate lift")
+
+    inputs = RoiInputs(
+        phase1_fee=fee, pass_through_costs=pass_through,
+        support_payroll=payroll, support_reduction_pct=support_pct,
+        retention_mode="platinum" if mode.startswith("Platinum") else "portfolio",
+        platinum_retained=platinum_n, renewal_lift_pct=lift,
+    )
+    r = compute(inputs)
+
+    with right:
+        m1, m2, m3, m4 = st.columns(4)
+        m1.metric("Year-1 benefit", f"${r.total_benefit:,.0f}")
+        net_sign = "-" if r.net_benefit < 0 else ""
+        m2.metric("Net vs fee", f"{net_sign}${abs(r.net_benefit):,.0f}", delta=f"{r.roi_pct:.0f}% ROI")
+        m3.metric("Payback multiple", f"{r.payback_multiple:.2f}×")
+        m4.metric("Payback", {CONTRACT_LOCK_WEEK: f"Week {CONTRACT_LOCK_WEEK} (contract lock)",
+                              EVENT_WEEK: f"Week {EVENT_WEEK} (event week)"}.get(r.payback_week, "Not in Year 1"))
+
+        if r.payback_week is None:
+            st.error(f"Does not pay back. Shortfall ${-r.net_benefit:,.0f}.")
+        else:
+            st.success(f"Pays back by week {r.payback_week}.")
+
+        st.line_chart(pd.DataFrame(cumulative_timeline(inputs, r)), x="Week",
+                      y=["Cumulative benefit", "Phase 1 cost"])
+
+        st.markdown(
+            f"- **Support alone:** ${r.support_savings:,.0f} covers **{r.support_only_coverage_pct:.0f}%** "
+            f"of the fee, and only at event week (week {EVENT_WEEK}).\n"
+            f"- **Sponsor retention:** ${r.retained_revenue:,.0f} recovers **{r.churn_recovered_pct:.1f}%** "
+            f"of the ${r.churn_dollars / 1e6:.2f}M lost to the 14% renewal drop, booked at contract lock "
+            f"(week {CONTRACT_LOCK_WEEK}).\n"
+            f"- **Break-even:** with the support savings above, Meridian needs "
+            f"**{r.platinum_needed_to_break_even} retained Platinum sponsor(s)** to cover the fee."
+        )

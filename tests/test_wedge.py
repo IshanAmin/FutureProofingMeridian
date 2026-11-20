@@ -10,6 +10,7 @@ import pytest
 from meridian import safety_alerts
 from meridian.circuit_breaker import evaluate_breaker
 from meridian.config import AS_OF
+from meridian.credentials import detect_key, verify_key
 from meridian.data_loader import load_sources
 from meridian.gate import evaluate, evaluate_sponsor
 from meridian.ledger import reconcile
@@ -105,3 +106,41 @@ def test_safety_module_is_isolated_from_ai_layer():
 def test_safety_templates_reject_unknown_venue():
     with pytest.raises(ValueError):
         safety_alerts.render("room_change", session_title="Keynote", venue="Building 9", room="A")
+
+
+def _status_client(status: int, body: dict) -> anthropic.Anthropic:
+    transport = httpx.MockTransport(lambda request: httpx.Response(status, json=body))
+    return anthropic.Anthropic(api_key="test", http_client=httpx.Client(transport=transport), max_retries=0)
+
+
+def test_key_is_masked_to_last_four(monkeypatch):
+    monkeypatch.setenv("ANTHROPIC_API_KEY", "sk-ant-api03-secretvalue-f3a9")
+    status = detect_key()
+    assert status.present and status.masked == "sk-ant-…f3a9"
+    assert "secretvalue" not in status.masked
+
+
+def test_no_key_detected(monkeypatch):
+    monkeypatch.delenv("ANTHROPIC_API_KEY", raising=False)
+    monkeypatch.delenv("ANTHROPIC_AUTH_TOKEN", raising=False)
+    assert not detect_key().present
+
+
+def test_verify_key_accepts_and_rejects():
+    ok = verify_key(_status_client(200, {"id": "claude-opus-5-5", "type": "model", "display_name": "Claude Opus 5.5",
+                                         "created_at": "2026-01-01T00:00:00Z"}))
+    bad = verify_key(_status_client(401, {"type": "error", "error": {"type": "authentication_error", "message": "invalid x-api-key"}}))
+    assert ok.ok and not bad.ok and "rejected" in bad.message
+
+
+def test_roi_matches_locked_strategy_numbers():
+    from meridian.roi import RoiInputs, compute
+    base = compute(RoiInputs())                                 # 3 Platinum + 30% support cut
+    assert base.support_savings == 126_000
+    assert base.retained_revenue == 750_000 and base.payback_week == 5
+    assert base.platinum_needed_to_break_even == 3
+    assert round(base.churn_dollars) == 6_720_000
+    portfolio = compute(RoiInputs(retention_mode="portfolio", renewal_lift_pct=1.5))
+    assert portfolio.retained_revenue == 720_000
+    support_only = compute(RoiInputs(platinum_retained=0))
+    assert support_only.payback_week is None
