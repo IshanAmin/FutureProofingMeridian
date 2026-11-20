@@ -1,0 +1,4 @@
+[theme]
+# Neutral blue accent. Streamlit's default red made normal states (e.g. the replay slider) look like alerts.
+# Real problems still show in red via error boxes.
+primaryColor = "#2563EB"
