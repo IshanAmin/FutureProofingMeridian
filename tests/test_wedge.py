@@ -201,8 +201,8 @@ def test_registered_attendee_reaches_matchmaker_without_pii():
 def test_latched_breaker_stays_tripped_until_switched_off():
     from meridian.circuit_breaker import latched_breaker
     healthy_now = evaluate_breaker(SLACK, datetime(2026, 11, 20, 12, 0, tzinfo=timezone.utc))
-    still_on = latched_breaker(True, "auto", healthy_now)        # complaints fell, nobody reset it
-    assert still_on.tripped and "automatically" in still_on.reason
+    still_on = latched_breaker(True, "auto", healthy_now, "2026-11-20T13:00:00Z")  # complaints fell, no reset
+    assert still_on.tripped and "automatically at 13:00" in still_on.reason   # the hour it tripped, not now
     assert not evaluate(STATE, "A001", "SP03", still_on).allowed
     reset = latched_breaker(False, None, healthy_now)
     assert not reset.tripped and evaluate(STATE, "A001", "SP03", reset).allowed

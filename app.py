@@ -150,7 +150,7 @@ with st.sidebar:
              "a manual override with the person's name, which is logged.",
     )
     cause = st.session_state.get("breaker_cause")
-    breaker = latched_breaker(switched_on, cause, auto)
+    breaker = latched_breaker(switched_on, cause, auto, st.session_state.get("breaker_trip_window"))
 
     limit = f"{OPT_OUT_TRIP_RATE:.0%}"
     if switched_on and cause == "auto":
