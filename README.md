@@ -55,6 +55,6 @@ meridian/safety_alerts.py  static safety templates; imports nothing from the AI 
 meridian/registration.py   step 0: registration form → attendee record + per-sponsor consent events
 meridian/customer_view.py  tab ⓪ UI: simulated browser (customer view) beside the internal view
 data/                      synthetic exports from the six tools
-tests/test_wedge.py        brief edge cases and hard-stop guarantees
+tests/test_wedge.py        edge cases and hard-stop guarantees
 docs/plan/                 phased plan for each step (start at docs/plan/README.md)
 ```

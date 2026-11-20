@@ -16,7 +16,7 @@ from meridian.config import AS_OF, MODEL, OPT_OUT_TRIP_RATE, WEEKLY_SPONSOR_CAP
 from meridian import customer_view
 from meridian.credentials import detect_key, verify_key
 from meridian.data_loader import load_sources
-from meridian.gate import evaluate, evaluate_sponsor
+from meridian.gate import evaluate_sponsor
 from meridian.ledger import ledger_rows, reconcile
 from meridian.matchmaker import run_matchmaking
 from meridian.roi import CONTRACT_LOCK_WEEK, EVENT_WEEK, RoiInputs, compute, cumulative_timeline
@@ -318,25 +318,6 @@ with tab_gate:
                          else "background-color: rgba(218,54,51,0.12)"] * len(row), axis=1),
         hide_index=True, width="stretch",
     )
-
-    st.markdown("#### Brief edge cases")
-    edge_cases = [
-        ("A002", "SP01", "General marketing opt-in, no sponsor consent", "BLOCK"),
-        ("A003", "SP02", "Granted in app, later revoked via WhatsApp STOP", "BLOCK"),
-        ("A004", "SP01", "Hit weekly sponsor frequency cap", "BLOCK"),
-        ("A001", "SP03", "International, prefers WhatsApp, valid sponsor consent", "PASS"),
-        ("A010", "SP02", "Consent from a 2025 booth scan (expired)", "BLOCK"),
-        ("A014", "SP01", "Consented to Sentinel, not Helix (consent is per sponsor)", "BLOCK"),
-        ("A017", "SP02", "Granted, revoked, then re-granted (latest wins)", "PASS"),
-    ]
-    st.dataframe(pd.DataFrame([{
-        "Case": desc, "Attendee": aid, "Sponsor": state.sponsors[sid]["name"],
-        "Expected": expected,
-        "Actual": "PASS" if (d := evaluate(state, aid, sid, breaker)).allowed else "BLOCK",
-        "Gate reason": d.reason,
-    } for aid, sid, desc, expected in edge_cases]), hide_index=True, width="stretch")
-    if breaker.tripped:
-        st.info("Breaker is tripped, so every case currently blocks. Reset it in the sidebar to see the per-rule results.")
 
     st.markdown("#### Session audit log")
     log = st.session_state.get("audit_log", [])

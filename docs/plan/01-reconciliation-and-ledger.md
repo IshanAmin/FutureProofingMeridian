@@ -11,7 +11,7 @@ Consent Ledger that every later step reads from.
 
 | Phase | Scope | Output | Status |
 |---|---|---|---|
-| 1.1 Synthetic data | Realistic exports from all six tools, with the brief's edge cases built in | `data/*.json` (18 attendees, 6 sponsors, 25 consent events) | Done |
+| 1.1 Synthetic data | Realistic exports from all six tools, with the required edge cases built in | `data/*.json` (18 attendees, 6 sponsors, 25 consent events) | Done |
 | 1.2 Loader | Read each tool's export as that vendor would provide it | `data_loader.py` | Done |
 | 1.3 Attendee view | Merge identity, interests, channel preferences and unsubscribes per attendee | `build_attendees()` | Done |
 | 1.4 Consent ledger | Collect grant/revoke events from four tools and resolve to one status per (attendee, sponsor) | `collect_consent_events()`, `resolve_consent()` | Done |
@@ -29,7 +29,7 @@ Consent Ledger that every later step reads from.
 | `badge_scan_vendor.json` | Sponsor list and buyer profiles, prior-year booth scans with a consent tick |
 | `ops_slack.json` | Hourly opt-out/spam rollups and human flags (feeds step 4) |
 
-Edge cases the brief requires (and where they live): general opt-in only (A002), granted then
+Edge cases required for the prototype data (and where they live): general opt-in only (A002), granted then
 revoked (A003), weekly cap reached (A004), international WhatsApp with valid consent (A001).
 
 ## Phase 1.4: Ledger rules (decisions)
