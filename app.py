@@ -270,12 +270,25 @@ with tab_ledger:
 # ---------------------------------------------------------------- 2. gate + audit
 with tab_gate:
     st.subheader("Deterministic Consent Gate")
-    st.code(
+    code_col, note_col = st.columns([3, 2], vertical_alignment="center")
+    code_col.code(
         "allowed = breaker_ok and sponsor_in_rollout \\\n"
         "      and sponsor_specific_consent == True \\\n"
         "      and channel_opt_in == True \\\n"
         f"      and weekly_sponsor_sends < {WEEKLY_SPONSOR_CAP}",
         language="python",
+    )
+    note_col.markdown(
+        """
+<div style="display:flex;align-items:center;gap:10px;">
+  <span style="font-size:28px;line-height:1;">⬅</span>
+  <div style="border:1.5px solid rgba(128,128,128,.55);border-radius:8px;padding:8px 12px;
+              font-size:0.88rem;line-height:1.4;">
+    <strong>It's not AI.</strong> It's plain rules written as code, and hence it gives the same
+    answer every time, since the checks are hard-coded.
+  </div>
+</div>""",
+        unsafe_allow_html=True,
     )
     sponsor_id = st.selectbox(
         "Evaluate every attendee against sponsor",
