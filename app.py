@@ -284,8 +284,9 @@ with tab_gate:
   <span style="font-size:28px;line-height:1;">⬅</span>
   <div style="border:1.5px solid rgba(128,128,128,.55);border-radius:8px;padding:8px 12px;
               font-size:0.88rem;line-height:1.4;">
-    <strong>It's not AI.</strong> It's plain rules written as code, and hence it gives the same
-    answer every time, since the checks are hard-coded.
+    <strong>It's not AI that makes the decision.</strong><br>
+    It's plain rules written as code, and hence it gives the same answer every time,
+    since the checks are hard-coded.
   </div>
 </div>""",
         unsafe_allow_html=True,
