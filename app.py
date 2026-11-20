@@ -34,9 +34,12 @@ def _ts(value: str) -> datetime:
 
 
 def highlight_revoked(value) -> str:
-    """Red cell for revoked consent, so withdrawals stand out in the ledger and timeline."""
-    return ("background-color: rgba(218, 54, 51, 0.30); font-weight: 600"
-            if value in ("revoked", "revoke") else "")
+    """Colour consent that no longer counts: red for revoked, yellow for expired."""
+    if value in ("revoked", "revoke"):
+        return "background-color: rgba(218, 54, 51, 0.30); font-weight: 600"
+    if value == "expired":
+        return "background-color: rgba(234, 179, 8, 0.35); font-weight: 600"
+    return ""
 
 
 def log_audit(rows: list[dict]) -> None:
@@ -247,7 +250,7 @@ with tab_ledger:
     st.dataframe(pd.DataFrame(ledger_rows(state)).style.map(highlight_revoked, subset=["Consent Status"]),
                  hide_index=True, width="stretch")
 
-    with st.expander("Unified attendee view"):
+    with st.expander("Unified attendee view: everything about each person in one row."):
         st.dataframe(pd.DataFrame([{
             "ID": a.attendee_id, "Name": a.name, "Role": a.role, "Company": a.company,
             "Country": a.country, "General marketing opt-in": a.general_marketing_opt_in,
