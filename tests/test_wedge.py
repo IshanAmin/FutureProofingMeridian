@@ -144,3 +144,55 @@ def test_roi_matches_locked_strategy_numbers():
     assert portfolio.retained_revenue == 720_000
     support_only = compute(RoiInputs(platinum_retained=0))
     assert support_only.payback_week is None
+
+
+# ---------------------------------------------------------------- Step 0: registration & consent
+from meridian.registration import RegistrationForm, register  # noqa: E402
+
+
+def _form(sponsor_channels, preferred="whatsapp", news=False, phone="+44 7700 900123"):
+    return RegistrationForm(
+        name="Pat Reviewer", email="pat@example.com", phone=phone, company="Example Co", role="CTO",
+        industry="Technology", country="GB", preferred_channel=preferred, event_news_opt_in=news,
+        topic_interests=("generative ai",), sponsor_channels=sponsor_channels,
+    )
+
+
+def _state_with(reg):
+    return reconcile(SOURCES, AS_OF, extra_attendees=[reg.attendee], extra_events=list(reg.consent_events))
+
+
+def test_registration_consent_flows_into_ledger_and_gate():
+    reg = register(_form({"SP01": ("whatsapp",), "SP02": ()}), "R001")
+    state = _state_with(reg)
+    helix = evaluate(state, "R001", "SP01", HEALTHY)
+    assert helix.allowed and helix.channel == "whatsapp"
+    sentinel = evaluate(state, "R001", "SP02", HEALTHY)          # empty boxes = no
+    assert not sentinel.allowed and "no consent" in sentinel.reason
+
+
+def test_registration_channel_choice_wins_over_preferred_channel():
+    state = _state_with(register(_form({"SP03": ("email",)}, preferred="whatsapp"), "R001"))
+    d = evaluate(state, "R001", "SP03", HEALTHY)
+    assert d.allowed and d.channel == "email"                    # only a channel they agreed to
+
+
+def test_event_news_opt_in_is_not_sponsor_consent():
+    state = _state_with(register(_form({}, news=True), "R001"))
+    d = evaluate(state, "R001", "SP01", HEALTHY)
+    assert not d.allowed and "general marketing opt-in only" in d.reason
+
+
+def test_registration_validation():
+    with pytest.raises(ValueError, match="mobile number"):
+        register(_form({"SP01": ("sms",)}, preferred="email", phone=""), "R001")
+    with pytest.raises(ValueError, match="valid work email"):
+        register(RegistrationForm("Pat", "not-an-email", "", "Co", "CTO", "Technology", "GB",
+                                  "email", False, (), {}), "R001")
+
+
+def test_registered_attendee_reaches_matchmaker_without_pii():
+    state = _state_with(register(_form({"SP05": ("whatsapp",)}), "R001"))
+    run = run_matchmaking(state, "SP05", evaluate_sponsor(state, "SP05", HEALTHY), use_llm=False)
+    payload = json.dumps(run.payload)
+    assert "R001" in payload and "Pat Reviewer" not in payload and "pat@example.com" not in payload

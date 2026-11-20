@@ -3,14 +3,17 @@
 Run:  streamlit run app.py
 """
 
+import os
 from datetime import datetime
 
 import pandas as pd
 import streamlit as st
+from streamlit.errors import StreamlitSecretNotFoundError
 
 from meridian import safety_alerts
 from meridian.circuit_breaker import evaluate_breaker
 from meridian.config import AS_OF, MODEL, OPT_OUT_TRIP_RATE, WEEKLY_SPONSOR_CAP
+from meridian import customer_view
 from meridian.credentials import detect_key, verify_key
 from meridian.data_loader import load_sources
 from meridian.gate import evaluate, evaluate_sponsor
@@ -34,8 +37,27 @@ def log_audit(rows: list[dict]) -> None:
     st.session_state.setdefault("audit_log", []).extend(rows)
 
 
+def load_key_from_secrets() -> None:
+    """Use the key from .streamlit/secrets.toml (local or Streamlit Cloud), so nobody has to export it.
+
+    Streamlit also copies top-level secrets into environment variables, so the template's
+    placeholder value must be removed explicitly or it would look like a real key.
+    """
+    try:
+        key = st.secrets.get("ANTHROPIC_API_KEY", "")
+    except StreamlitSecretNotFoundError:
+        key = ""
+    if key and "PASTE" not in key and not os.environ.get("ANTHROPIC_API_KEY"):
+        os.environ["ANTHROPIC_API_KEY"] = key
+    if "PASTE" in os.environ.get("ANTHROPIC_API_KEY", ""):
+        del os.environ["ANTHROPIC_API_KEY"]
+
+
+load_key_from_secrets()
 sources = get_sources()
-state = reconcile(sources, AS_OF)
+registrations = customer_view.session_registrations()   # step 0: live sign-ups in this session
+state = reconcile(sources, AS_OF, extra_attendees=[r.attendee for r in registrations],
+                  extra_events=[ev for r in registrations for ev in r.consent_events])
 slack = sources["ops_slack"]["messages"]
 
 # ---------------------------------------------------------------- sidebar: operator controls
@@ -43,7 +65,7 @@ with st.sidebar:
     st.subheader("Anthropic API key")
     key = detect_key()
     if not key.present:
-        st.error("🔴 No key loaded\n\nRun `export ANTHROPIC_API_KEY=...` in this terminal, then restart the app.")
+        st.error("🔴 No key loaded\n\nPut it in `.streamlit/secrets.toml` (or `export ANTHROPIC_API_KEY=...`), then restart the app.")
     else:
         checks = st.session_state.setdefault("key_checks", {})
         if key.masked not in checks or st.button("Re-check key"):
@@ -90,7 +112,8 @@ with st.sidebar:
 st.title("Meridian Summit · Consent-Gated Sponsor Matchmaker")
 st.caption("Phase 1 · Platinum sponsors only · No AI runs without consent")
 
-tab_ledger, tab_gate, tab_match, tab_ops, tab_roi = st.tabs([
+tab_register, tab_ledger, tab_gate, tab_match, tab_ops, tab_roi = st.tabs([
+    "⓪ Customer View: Registration & Consent",
     "① Reconciliation & Consent Ledger",
     "② Consent Gate & Audit Log",
     "③ Sponsor Matchmaking",
@@ -99,6 +122,9 @@ tab_ledger, tab_gate, tab_match, tab_ops, tab_roi = st.tabs([
 ])
 
 # ---------------------------------------------------------------- 1. reconciliation
+with tab_register:
+    customer_view.render(state, breaker)
+
 with tab_ledger:
     st.subheader("Six tools, no shared state → one attendee view and one consent ledger")
     counts = pd.DataFrame([

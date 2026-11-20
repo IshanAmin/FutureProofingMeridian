@@ -24,6 +24,7 @@ class ConsentEvent:
     at: datetime
     source: str          # which of the six tools recorded it
     ref: str             # the source system's own record id
+    channels: tuple[str, ...] | None = None  # registration only: channels agreed for this sponsor
 
 
 @dataclass(frozen=True)
@@ -154,15 +155,21 @@ def build_attendees(sources: dict[str, dict]) -> dict[str, Attendee]:
     return attendees
 
 
-def reconcile(sources: dict[str, dict], as_of: datetime = AS_OF) -> MeridianState:
-    events = collect_consent_events(sources)
+def reconcile(sources: dict[str, dict], as_of: datetime = AS_OF,
+              extra_attendees: list[Attendee] = (), extra_events: list[ConsentEvent] = ()) -> MeridianState:
+    """extra_* come from live registrations in the customer view (step 0)."""
+    events = sorted(collect_consent_events(sources) + list(extra_events), key=lambda ev: ev.at)
+    # The demo clock is fixed, but live registrations happen "now"; never drop them as future events.
+    consent_as_of = max([as_of] + [ev.at for ev in extra_events])
+    attendees = build_attendees(sources)
+    attendees.update({a.attendee_id: a for a in extra_attendees})
     badge = sources["badge_scan_vendor"]
     return MeridianState(
         as_of=as_of,
-        attendees=build_attendees(sources),
+        attendees=attendees,
         sponsors={s["sponsor_id"]: s for s in badge["sponsors"]},
         consent_events=events,
-        consent=resolve_consent(events, as_of),
+        consent=resolve_consent(events, consent_as_of),
         sponsor_sends_7d=count_recent_sponsor_sends(sources, as_of),
         booth_visits={(s["attendee_id"], s["sponsor_id"]) for s in badge["booth_scans"]},
     )

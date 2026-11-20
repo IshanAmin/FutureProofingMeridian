@@ -49,6 +49,12 @@ def evaluate(state: MeridianState, attendee_id: str, sponsor_id: str,
     in_rollout = sponsor["tier"] in ROLLOUT_TIERS
     sponsor_specific_consent = consent.is_valid
     channel_opt_in = attendee.channel_opt_in.get(channel, False)
+    if sponsor_specific_consent and consent.last_event.channels:
+        # Registration consent names the channels agreed for this sponsor, and it wins over
+        # general channel settings. Use the preferred channel if agreed, else the first agreed one.
+        if channel not in consent.last_event.channels:
+            channel = consent.last_event.channels[0]
+        channel_opt_in = True
     under_cap = sends < WEEKLY_SPONSOR_CAP
 
     # Order matters only for the human-readable reason; every check is recorded regardless.
