@@ -1,7 +1,7 @@
 {
   "source": "ops_slack",
   "exported_at": "2026-11-20T15:00:00Z",
-  "notes": "Messages from #sponsor-comms-monitor. comms-bot posts an hourly rollup with machine-readable metrics; humans post flags.",
+  "notes": "Messages from #sponsor-comms-monitor. comms-bot posts an hourly rollup with machine-readable metrics; humans post flags. Human posts carry a 'status' tag (like an emoji reaction): update, investigating, incident_confirmed.",
   "messages": [
     {
       "ts": "2026-11-20T09:00:00Z",
@@ -22,7 +22,8 @@
       "channel": "#sponsor-comms-monitor",
       "user": "jordan.ops",
       "text": "FYI WhatsApp template for Orbit Payments approved by Meta, going live next batch.",
-      "metrics": null
+      "metrics": null,
+      "status": "update"
     },
     {
       "ts": "2026-11-20T11:00:00Z",
@@ -43,7 +44,8 @@
       "channel": "#sponsor-comms-monitor",
       "user": "priya.support",
       "text": "Seeing a cluster of 'why is Orbit texting me' tickets from Brazil and Mexico. Possible duplicate sends?",
-      "metrics": null
+      "metrics": null,
+      "status": "investigating"
     },
     {
       "ts": "2026-11-20T13:00:00Z",
@@ -57,7 +59,8 @@
       "channel": "#sponsor-comms-monitor",
       "user": "jordan.ops",
       "text": "Confirmed: Orbit WhatsApp batch double-sent to ~600 attendees. Pausing that template.",
-      "metrics": null
+      "metrics": null,
+      "status": "incident_confirmed"
     }
   ]
 }

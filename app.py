@@ -4,8 +4,10 @@ Run:  streamlit run app.py
 """
 
 import os
+import math
 from datetime import datetime, timezone
 
+import altair as alt
 import pandas as pd
 import streamlit as st
 from streamlit.errors import StreamlitSecretNotFoundError
@@ -54,6 +56,36 @@ MATCH_FLOW_HTML = (
     ])
     + "</div></div>"
 )
+
+
+SLACK_STATUS = {
+    "update": "🔵 Update",
+    "investigating": "🟠 Investigating",
+    "incident_confirmed": "🔴 Incident confirmed",
+}
+CHIP_COLORS = {
+    "🟢": "rgba(34, 197, 94, 0.25)",
+    "🟡": "rgba(234, 179, 8, 0.35)",
+    "🟠": "rgba(249, 115, 22, 0.30)",
+    "🔴": "rgba(218, 54, 51, 0.30)",
+    "🔵": "rgba(37, 99, 235, 0.20)",
+}
+
+
+def slack_status(message: dict) -> str:
+    """Chip for a Slack post: hourly reports are rated by complaint rate; human posts use their tag."""
+    metrics = message.get("metrics")
+    if metrics:
+        rate = (metrics["opt_outs"] + metrics["spam_reports"]) / metrics["sent"]
+        if rate > OPT_OUT_TRIP_RATE:
+            return "🔴 Breaker tripped"
+        return "🟡 Rising" if rate >= 0.01 else "🟢 Normal"
+    return SLACK_STATUS.get(message.get("status"), "⚪ Note")
+
+
+def status_chip_style(value: str) -> str:
+    color = CHIP_COLORS.get(value[:1], "")
+    return f"background-color: {color}; font-weight: 600; border-radius: 12px" if color else ""
 
 
 def highlight_revoked(value) -> str:
@@ -405,7 +437,14 @@ with tab_match:
 
 # ---------------------------------------------------------------- 4. rollback + safety
 with tab_ops:
-    st.subheader("Circuit breaker")
+    cb_heading, cb_note = st.columns([1, 3], vertical_alignment="center")
+    cb_heading.subheader("Circuit breaker")
+    cb_note.markdown(
+        '<div style="border:1.5px solid rgba(128,128,128,.55);border-radius:8px;padding:8px 12px;'
+        'font-size:0.88rem;line-height:1.4;">The <b>flat line at 2%</b> is where the circuit breaker trips: '
+        "when the complaint line crosses it, all sponsor messages stop.</div>",
+        unsafe_allow_html=True,
+    )
     rollups = [{
         "Window end (UTC)": m["ts"][11:16],
         "Sent": m["metrics"]["sent"],
@@ -415,10 +454,32 @@ with tab_ops:
     } for m in slack if m.get("metrics") and _ts(m["ts"]) <= _ts(replay_ts)]
     roll_df = pd.DataFrame(rollups)
     roll_df["Trip threshold %"] = OPT_OUT_TRIP_RATE * 100
-    st.line_chart(roll_df, x="Window end (UTC)", y=["Rate %", "Trip threshold %"])
-    st.dataframe(pd.DataFrame([{"Time": m["ts"][11:16], "User": m["user"], "Message": m["text"]}
-                               for m in slack if _ts(m["ts"]) <= _ts(replay_ts)]),
-                 hide_index=True, width="stretch")
+    # Fixed y-axis from 0 so the 2% trip line sits visibly below the top (at least 2.5%, more if a
+    # report goes higher, rounded up to the next 0.5).
+    y_max = max(2.5, math.ceil(roll_df["Rate %"].max() * 2) / 2)
+    chart_df = roll_df.melt(id_vars="Window end (UTC)", value_vars=["Rate %", "Trip threshold %"],
+                            var_name="Series", value_name="Percent")
+    st.altair_chart(
+        alt.Chart(chart_df).mark_line(point=True).encode(
+            x=alt.X("Window end (UTC):N", title="Window end (UTC)"),
+            y=alt.Y("Percent:Q", scale=alt.Scale(domain=[0, y_max]),
+                    axis=alt.Axis(title="Complaints", labelExpr="datum.value + '%'")),
+            color=alt.Color("Series:N", title=None, legend=alt.Legend(orient="bottom"),
+                            scale=alt.Scale(domain=["Rate %", "Trip threshold %"],
+                                            range=["#2563EB", "#DC2626"])),   # complaints blue, trip line red
+            tooltip=["Window end (UTC)", "Series", "Percent"],
+        ),
+        width="stretch",
+    )
+    st.markdown("#### Slack messages sent out")
+    st.caption("Posted in Meridian's ops channel #sponsor-comms-monitor, up to the next hourly report.")
+    # Show posts until the next hourly report, so human follow-ups (e.g. 13:04) appear with their hour.
+    later_reports = [_ts(t) for t in rollup_times if _ts(t) > _ts(replay_ts)]
+    shown_until = min(later_reports) if later_reports else None
+    slack_df = pd.DataFrame([{"Status": slack_status(m), "Time": m["ts"][11:16], "User": m["user"],
+                              "Message": m["text"]} for m in slack
+                             if shown_until is None or _ts(m["ts"]) < shown_until])
+    st.dataframe(slack_df.style.map(status_chip_style, subset=["Status"]), hide_index=True, width="stretch")
 
     st.subheader("Circuit breaker log")
     st.caption("Every automatic trip, manual switch-on and named manual override in this session.")
