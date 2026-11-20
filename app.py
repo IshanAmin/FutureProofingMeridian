@@ -33,6 +33,29 @@ def _ts(value: str) -> datetime:
     return datetime.fromisoformat(value.replace("Z", "+00:00"))
 
 
+def _flow_step(number: int, text: str) -> str:
+    return (f'<div style="flex:1 1 120px;border:1.5px solid rgba(37,99,235,.55);border-radius:8px;'
+            f'padding:8px 10px;font-size:0.85rem;line-height:1.35;background:rgba(37,99,235,.06);">'
+            f'<div style="font-weight:700;opacity:.8;margin-bottom:2px;">{number}</div>{text}</div>')
+
+
+_FLOW_ARROW = '<div style="flex:0 0 auto;align-self:center;font-size:22px;opacity:.7;">➜</div>'
+
+# Tab ③: how a match brief is produced, as a small outlined flow chart.
+MATCH_FLOW_HTML = (
+    '<div style="border:1.5px solid rgba(128,128,128,.45);border-radius:10px;padding:10px;">'
+    '<div style="font-weight:700;font-size:0.95rem;margin:0 0 8px 2px;">The workflow</div>'
+    '<div style="display:flex;flex-wrap:wrap;gap:8px;align-items:stretch;">'
+    + _FLOW_ARROW.join([
+        _flow_step(1, '<b>Run gate</b><br><span style="font-size:22px;line-height:1;">↙</span>'),
+        _flow_step(2, "Keep everyone who <b>said yes</b> to this sponsor"),
+        _flow_step(3, "<b>Claude</b> compares each one to the sponsor's ideal buyer: job title, topics, industry"),
+        _flow_step(4, "<b>Writes the brief</b>"),
+    ])
+    + "</div></div>"
+)
+
+
 def highlight_revoked(value) -> str:
     """Colour consent that no longer counts: red for revoked, yellow for expired."""
     if value in ("revoked", "revoke"):
@@ -332,7 +355,9 @@ with tab_gate:
 
 # ---------------------------------------------------------------- 3. matchmaking
 with tab_match:
-    st.subheader("Platinum sponsor match brief")
+    heading_col, flow_col = st.columns([1, 3], vertical_alignment="center")
+    heading_col.subheader("Marcus Demo for Platinum Sponsors")
+    flow_col.markdown(MATCH_FLOW_HTML, unsafe_allow_html=True)
     platinum = [s for s, sp in state.sponsors.items() if sp["tier"] == "platinum"]
     match_sponsor = st.selectbox("Sponsor", platinum,
                                  format_func=lambda s: state.sponsors[s]["name"], key="match_sponsor")
