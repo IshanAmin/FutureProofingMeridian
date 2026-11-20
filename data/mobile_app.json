@@ -1,0 +1,33 @@
+{
+  "source": "mobile_app",
+  "exported_at": "2026-11-20T09:00:00Z",
+  "profiles": [
+    {"attendee_id": "A001", "push_opt_in": true, "topic_interests": ["data platforms", "data governance", "generative ai"], "sessions_bookmarked": 9},
+    {"attendee_id": "A002", "push_opt_in": true, "topic_interests": ["cloud infrastructure", "it operations"], "sessions_bookmarked": 4},
+    {"attendee_id": "A003", "push_opt_in": true, "topic_interests": ["zero trust", "identity", "fraud"], "sessions_bookmarked": 7},
+    {"attendee_id": "A004", "push_opt_in": false, "topic_interests": ["generative ai", "robotics", "kubernetes"], "sessions_bookmarked": 11},
+    {"attendee_id": "A005", "push_opt_in": true, "topic_interests": ["platform engineering", "kubernetes", "payments"], "sessions_bookmarked": 8},
+    {"attendee_id": "A006", "push_opt_in": false, "topic_interests": ["mlops", "generative ai"], "sessions_bookmarked": 6},
+    {"attendee_id": "A007", "push_opt_in": true, "topic_interests": ["platform engineering", "cloud infrastructure"], "sessions_bookmarked": 5},
+    {"attendee_id": "A008", "push_opt_in": true, "topic_interests": ["lakehouse", "data platforms"], "sessions_bookmarked": 6},
+    {"attendee_id": "A009", "push_opt_in": false, "topic_interests": ["martech"], "sessions_bookmarked": 2},
+    {"attendee_id": "A010", "push_opt_in": true, "topic_interests": ["application security", "zero trust"], "sessions_bookmarked": 7},
+    {"attendee_id": "A011", "push_opt_in": true, "topic_interests": ["payments", "fintech", "fraud"], "sessions_bookmarked": 5},
+    {"attendee_id": "A012", "push_opt_in": true, "topic_interests": ["ai governance", "generative ai", "data governance"], "sessions_bookmarked": 12},
+    {"attendee_id": "A013", "push_opt_in": true, "topic_interests": ["martech", "customer data"], "sessions_bookmarked": 3},
+    {"attendee_id": "A014", "push_opt_in": true, "topic_interests": ["cloud infrastructure", "kubernetes"], "sessions_bookmarked": 6},
+    {"attendee_id": "A015", "push_opt_in": true, "topic_interests": ["payments", "fraud"], "sessions_bookmarked": 4},
+    {"attendee_id": "A016", "push_opt_in": false, "topic_interests": ["data governance", "lakehouse", "ai governance"], "sessions_bookmarked": 8},
+    {"attendee_id": "A017", "push_opt_in": true, "topic_interests": ["identity", "zero trust"], "sessions_bookmarked": 6},
+    {"attendee_id": "A018", "push_opt_in": true, "topic_interests": ["kubernetes", "platform engineering"], "sessions_bookmarked": 3}
+  ],
+  "sponsor_consent_events": [
+    {"event_id": "APP-3301", "attendee_id": "A001", "sponsor_id": "SP03", "action": "grant", "at": "2026-10-22T05:40:00Z", "surface": "Sponsor page > Connect"},
+    {"event_id": "APP-3315", "attendee_id": "A003", "sponsor_id": "SP02", "action": "grant", "at": "2026-09-02T19:10:00Z", "surface": "Sponsor page > Connect"},
+    {"event_id": "APP-3342", "attendee_id": "A005", "sponsor_id": "SP01", "action": "grant", "at": "2026-10-03T08:15:00Z", "surface": "Sponsor page > Connect"},
+    {"event_id": "APP-3350", "attendee_id": "A012", "sponsor_id": "SP03", "action": "grant", "at": "2026-10-11T03:05:00Z", "surface": "Session follow-up card"},
+    {"event_id": "APP-3361", "attendee_id": "A013", "sponsor_id": "SG01", "action": "grant", "at": "2026-10-20T20:30:00Z", "surface": "Sponsor page > Connect"},
+    {"event_id": "APP-3377", "attendee_id": "A017", "sponsor_id": "SP02", "action": "grant", "at": "2026-09-01T07:45:00Z", "surface": "Sponsor page > Connect"},
+    {"event_id": "APP-3404", "attendee_id": "A017", "sponsor_id": "SP02", "action": "grant", "at": "2026-11-12T09:30:00Z", "surface": "Sponsor page > Connect"}
+  ]
+}

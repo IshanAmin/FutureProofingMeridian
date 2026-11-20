@@ -1,0 +1,26 @@
+{
+  "source": "badge_scan_vendor",
+  "exported_at": "2026-11-20T09:00:00Z",
+  "notes": "Sponsor master list plus prior-year (2026 event) booth scans. A scan only counts as sponsor consent when the attendee ticked 'share my details with this sponsor' on the scanner.",
+  "sponsors": [
+    {"sponsor_id": "SP01", "name": "Helix Cloud", "tier": "platinum", "annual_fee_usd": 250000, "booth": "Hall A-101", "target_buyer_profile": {"roles": ["CTO", "VP Engineering", "Head of Platform Engineering", "Director of Infrastructure", "Platform Engineer"], "industries": [], "topics": ["cloud infrastructure", "platform engineering", "kubernetes"]}},
+    {"sponsor_id": "SP02", "name": "Sentinel Security", "tier": "platinum", "annual_fee_usd": 250000, "booth": "Hall A-115", "target_buyer_profile": {"roles": ["CISO", "Security Architect", "Head of Security"], "industries": ["Financial Services", "Telecommunications", "Technology"], "topics": ["zero trust", "application security", "identity"]}},
+    {"sponsor_id": "SP03", "name": "Lumen Data", "tier": "platinum", "annual_fee_usd": 250000, "booth": "Hall B-204", "target_buyer_profile": {"roles": ["Chief Data Officer", "VP Data Engineering", "Data Architect", "Head of AI"], "industries": [], "topics": ["data platforms", "data governance", "lakehouse"]}},
+    {"sponsor_id": "SP04", "name": "Orbit Payments", "tier": "platinum", "annual_fee_usd": 250000, "booth": "Hall B-230", "target_buyer_profile": {"roles": ["CFO", "VP Payments"], "industries": ["Financial Services", "Fintech", "Retail"], "topics": ["payments", "fintech", "fraud"]}},
+    {"sponsor_id": "SP05", "name": "Atlas AI", "tier": "platinum", "annual_fee_usd": 250000, "booth": "Hall C-301", "target_buyer_profile": {"roles": ["CTO", "Head of AI", "ML Platform Lead"], "industries": [], "topics": ["generative ai", "mlops", "ai governance"]}},
+    {"sponsor_id": "SG01", "name": "Brightwave Marketing Cloud", "tier": "gold", "annual_fee_usd": 75000, "booth": "Hall D-410", "target_buyer_profile": {"roles": ["Marketing Manager", "Product Manager"], "industries": [], "topics": ["martech", "customer data"]}}
+  ],
+  "booth_scans": [
+    {"scan_id": "BS-26-0412", "attendee_id": "A001", "sponsor_id": "SP03", "scanned_at": "2026-04-15T14:22:00Z", "share_details_consent": true},
+    {"scan_id": "BS-26-0419", "attendee_id": "A004", "sponsor_id": "SP01", "scanned_at": "2026-04-15T16:05:00Z", "share_details_consent": true},
+    {"scan_id": "BS-26-0533", "attendee_id": "A004", "sponsor_id": "SP05", "scanned_at": "2026-04-16T11:40:00Z", "share_details_consent": true},
+    {"scan_id": "BS-26-0601", "attendee_id": "A007", "sponsor_id": "SP01", "scanned_at": "2026-04-16T13:12:00Z", "share_details_consent": true},
+    {"scan_id": "BS-26-0688", "attendee_id": "A002", "sponsor_id": "SP01", "scanned_at": "2026-04-16T15:30:00Z", "share_details_consent": false},
+    {"scan_id": "BS-26-0702", "attendee_id": "A015", "sponsor_id": "SP04", "scanned_at": "2026-04-17T10:02:00Z", "share_details_consent": true},
+    {"scan_id": "BS-26-0745", "attendee_id": "A012", "sponsor_id": "SP05", "scanned_at": "2026-04-17T12:48:00Z", "share_details_consent": true},
+    {"scan_id": "BS-26-0790", "attendee_id": "A014", "sponsor_id": "SP02", "scanned_at": "2026-04-17T14:15:00Z", "share_details_consent": true},
+    {"scan_id": "BS-25-1120", "attendee_id": "A010", "sponsor_id": "SP02", "scanned_at": "2025-04-09T09:55:00Z", "share_details_consent": true},
+    {"scan_id": "BS-26-0811", "attendee_id": "A016", "sponsor_id": "SP03", "scanned_at": "2026-04-17T15:50:00Z", "share_details_consent": true},
+    {"scan_id": "BS-26-0830", "attendee_id": "A018", "sponsor_id": "SP01", "scanned_at": "2026-04-18T09:20:00Z", "share_details_consent": true}
+  ]
+}

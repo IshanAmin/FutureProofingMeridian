@@ -1,0 +1,63 @@
+{
+  "source": "ops_slack",
+  "exported_at": "2026-11-20T15:00:00Z",
+  "notes": "Messages from #sponsor-comms-monitor. comms-bot posts an hourly rollup with machine-readable metrics; humans post flags.",
+  "messages": [
+    {
+      "ts": "2026-11-20T09:00:00Z",
+      "channel": "#sponsor-comms-monitor",
+      "user": "comms-bot",
+      "text": "Hourly rollup 08:00-09:00: 1,180 sponsor messages sent, 6 opt-outs, 0 spam reports (0.51% combined).",
+      "metrics": {"sent": 1180, "opt_outs": 6, "spam_reports": 0}
+    },
+    {
+      "ts": "2026-11-20T10:00:00Z",
+      "channel": "#sponsor-comms-monitor",
+      "user": "comms-bot",
+      "text": "Hourly rollup 09:00-10:00: 1,420 sponsor messages sent, 9 opt-outs, 1 spam reports (0.70% combined).",
+      "metrics": {"sent": 1420, "opt_outs": 9, "spam_reports": 1}
+    },
+    {
+      "ts": "2026-11-20T10:12:00Z",
+      "channel": "#sponsor-comms-monitor",
+      "user": "jordan.ops",
+      "text": "FYI WhatsApp template for Orbit Payments approved by Meta, going live next batch.",
+      "metrics": null
+    },
+    {
+      "ts": "2026-11-20T11:00:00Z",
+      "channel": "#sponsor-comms-monitor",
+      "user": "comms-bot",
+      "text": "Hourly rollup 10:00-11:00: 1,510 sponsor messages sent, 12 opt-outs, 2 spam reports (0.93% combined).",
+      "metrics": {"sent": 1510, "opt_outs": 12, "spam_reports": 2}
+    },
+    {
+      "ts": "2026-11-20T12:00:00Z",
+      "channel": "#sponsor-comms-monitor",
+      "user": "comms-bot",
+      "text": "Hourly rollup 11:00-12:00: 1,390 sponsor messages sent, 15 opt-outs, 2 spam reports (1.22% combined).",
+      "metrics": {"sent": 1390, "opt_outs": 15, "spam_reports": 2}
+    },
+    {
+      "ts": "2026-11-20T12:20:00Z",
+      "channel": "#sponsor-comms-monitor",
+      "user": "priya.support",
+      "text": "Seeing a cluster of 'why is Orbit texting me' tickets from Brazil and Mexico. Possible duplicate sends?",
+      "metrics": null
+    },
+    {
+      "ts": "2026-11-20T13:00:00Z",
+      "channel": "#sponsor-comms-monitor",
+      "user": "comms-bot",
+      "text": "Hourly rollup 12:00-13:00: 1,460 sponsor messages sent, 31 opt-outs, 7 spam reports (2.60% combined).",
+      "metrics": {"sent": 1460, "opt_outs": 31, "spam_reports": 7}
+    },
+    {
+      "ts": "2026-11-20T13:04:00Z",
+      "channel": "#sponsor-comms-monitor",
+      "user": "jordan.ops",
+      "text": "Confirmed: Orbit WhatsApp batch double-sent to ~600 attendees. Pausing that template.",
+      "metrics": null
+    }
+  ]
+}

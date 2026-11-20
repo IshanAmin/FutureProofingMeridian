@@ -1,0 +1,34 @@
+{
+  "source": "sms_whatsapp_gateway",
+  "exported_at": "2026-11-20T09:00:00Z",
+  "channel_preferences": [
+    {"attendee_id": "A001", "preferred_channel": "whatsapp", "whatsapp_opt_in": true, "sms_opt_in": false},
+    {"attendee_id": "A002", "preferred_channel": "email", "whatsapp_opt_in": false, "sms_opt_in": true},
+    {"attendee_id": "A003", "preferred_channel": "whatsapp", "whatsapp_opt_in": true, "sms_opt_in": true},
+    {"attendee_id": "A004", "preferred_channel": "email", "whatsapp_opt_in": false, "sms_opt_in": true},
+    {"attendee_id": "A005", "preferred_channel": "whatsapp", "whatsapp_opt_in": true, "sms_opt_in": false},
+    {"attendee_id": "A006", "preferred_channel": "email", "whatsapp_opt_in": false, "sms_opt_in": false},
+    {"attendee_id": "A007", "preferred_channel": "sms", "whatsapp_opt_in": false, "sms_opt_in": true},
+    {"attendee_id": "A008", "preferred_channel": "whatsapp", "whatsapp_opt_in": true, "sms_opt_in": false},
+    {"attendee_id": "A009", "preferred_channel": "email", "whatsapp_opt_in": false, "sms_opt_in": false},
+    {"attendee_id": "A010", "preferred_channel": "email", "whatsapp_opt_in": false, "sms_opt_in": false},
+    {"attendee_id": "A011", "preferred_channel": "email", "whatsapp_opt_in": false, "sms_opt_in": true},
+    {"attendee_id": "A012", "preferred_channel": "whatsapp", "whatsapp_opt_in": true, "sms_opt_in": true},
+    {"attendee_id": "A013", "preferred_channel": "push", "whatsapp_opt_in": false, "sms_opt_in": false},
+    {"attendee_id": "A014", "preferred_channel": "whatsapp", "whatsapp_opt_in": true, "sms_opt_in": false},
+    {"attendee_id": "A015", "preferred_channel": "sms", "whatsapp_opt_in": false, "sms_opt_in": true},
+    {"attendee_id": "A016", "preferred_channel": "email", "whatsapp_opt_in": true, "sms_opt_in": false},
+    {"attendee_id": "A017", "preferred_channel": "whatsapp", "whatsapp_opt_in": true, "sms_opt_in": false},
+    {"attendee_id": "A018", "preferred_channel": "email", "whatsapp_opt_in": false, "sms_opt_in": true}
+  ],
+  "sponsor_consent_events": [
+    {"event_id": "WA-77102", "attendee_id": "A001", "sponsor_id": "SP03", "action": "grant", "at": "2026-11-02T04:10:00Z", "channel": "whatsapp", "inbound_text": "YES LUMEN"},
+    {"event_id": "WA-77150", "attendee_id": "A003", "sponsor_id": "SP02", "action": "revoke", "at": "2026-11-10T22:41:00Z", "channel": "whatsapp", "inbound_text": "STOP SENTINEL"},
+    {"event_id": "WA-77188", "attendee_id": "A017", "sponsor_id": "SP02", "action": "revoke", "at": "2026-10-15T11:02:00Z", "channel": "whatsapp", "inbound_text": "STOP SENTINEL"},
+    {"event_id": "WA-77201", "attendee_id": "A008", "sponsor_id": "SP03", "action": "grant", "at": "2026-10-30T16:20:00Z", "channel": "whatsapp", "inbound_text": "YES LUMEN"},
+    {"event_id": "SMS-40217", "attendee_id": "A015", "sponsor_id": "SP04", "action": "grant", "at": "2026-10-21T18:00:00Z", "channel": "sms", "inbound_text": "YES ORBIT"}
+  ],
+  "sponsor_sends": [
+    {"send_id": "WA-SEND-9001", "attendee_id": "A012", "sponsor_id": "SP05", "sent_at": "2026-11-09T05:00:00Z", "channel": "whatsapp", "template": "sponsor_meeting_invite_wa_v1"}
+  ]
+}

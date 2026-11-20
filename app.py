@@ -1,0 +1,275 @@
+"""Meridian Summit · Phase 1 wedge: Consent-Gated Sponsor Matchmaker (Platinum first).
+
+Run:  streamlit run app.py
+"""
+
+import os
+from datetime import datetime
+
+import pandas as pd
+import streamlit as st
+
+from meridian import safety_alerts
+from meridian.circuit_breaker import evaluate_breaker
+from meridian.config import AS_OF, MODEL, OPT_OUT_TRIP_RATE, WEEKLY_SPONSOR_CAP
+from meridian.data_loader import load_sources
+from meridian.gate import evaluate, evaluate_sponsor
+from meridian.ledger import ledger_rows, reconcile
+from meridian.matchmaker import run_matchmaking
+
+st.set_page_config(page_title="Meridian · Consent-Gated Matchmaker", layout="wide")
+
+
+@st.cache_data
+def get_sources() -> dict:
+    return load_sources()
+
+
+def _ts(value: str) -> datetime:
+    return datetime.fromisoformat(value.replace("Z", "+00:00"))
+
+
+def log_audit(rows: list[dict]) -> None:
+    st.session_state.setdefault("audit_log", []).extend(rows)
+
+
+sources = get_sources()
+state = reconcile(sources, AS_OF)
+slack = sources["ops_slack"]["messages"]
+
+# ---------------------------------------------------------------- sidebar: operator controls
+with st.sidebar:
+    st.header("Operator controls")
+    st.caption(f"Demo clock: {AS_OF:%Y-%m-%d %H:%M} UTC")
+
+    rollup_times = [m["ts"] for m in slack if m.get("metrics")]
+    replay_ts = st.select_slider(
+        "Replay #sponsor-comms-monitor through",
+        options=rollup_times,
+        value=rollup_times[-2],
+        format_func=lambda t: t[11:16] + " UTC",
+        help="Move to 13:00 to watch the circuit breaker auto-trip on the opt-out spike.",
+    )
+    kill_switch = st.toggle("🛑 Global kill switch (sponsor outbound)", value=False)
+    breaker = evaluate_breaker(slack, _ts(replay_ts), kill_switch)
+
+    if breaker.tripped:
+        st.error(f"Outbound HALTED\n\n{breaker.reason}")
+    else:
+        st.success(f"Outbound healthy · latest opt-out/spam rate {breaker.latest_rate:.2%} "
+                   f"(trips > {OPT_OUT_TRIP_RATE:.0%})")
+
+    has_creds = bool(os.environ.get("ANTHROPIC_API_KEY") or os.environ.get("ANTHROPIC_AUTH_TOKEN"))
+    engine = st.radio(
+        "Matchmaking engine",
+        [f"Claude ({MODEL})", "Offline rule-based scorer"],
+        index=0 if has_creds else 1,
+        help="Without ANTHROPIC_API_KEY the app uses a transparent rule-based scorer with the same output shape.",
+    )
+    use_llm = engine.startswith("Claude")
+    if use_llm and not has_creds:
+        st.warning("No ANTHROPIC_API_KEY found; calls will fall back to the offline scorer.")
+
+st.title("Meridian Summit · Consent-Gated Sponsor Matchmaker")
+st.caption("Phase 1 wedge · Platinum sponsors only · deterministic consent gate runs before any model call")
+
+tab_ledger, tab_gate, tab_match, tab_ops = st.tabs([
+    "① Reconciliation & Consent Ledger",
+    "② Consent Gate & Audit Log",
+    "③ Sponsor Matchmaking",
+    "④ Rollback & Safety",
+])
+
+# ---------------------------------------------------------------- 1. reconciliation
+with tab_ledger:
+    st.subheader("Six tools, no shared state → one attendee view and one consent ledger")
+    counts = pd.DataFrame([
+        {"Tool": "registration_crm", "Records": len(sources["registration_crm"]["attendees"]),
+         "Contributes": "identity, role, company, general marketing opt-in"},
+        {"Tool": "mobile_app", "Records": len(sources["mobile_app"]["profiles"]),
+         "Contributes": "topic interests, push opt-in, in-app sponsor consent"},
+        {"Tool": "email_platform", "Records": len(sources["email_platform"]["subscribers"]),
+         "Contributes": "unsubscribes, preference-center sponsor consent, sponsor sends"},
+        {"Tool": "sms_whatsapp_gateway", "Records": len(sources["sms_whatsapp_gateway"]["channel_preferences"]),
+         "Contributes": "preferred channel, WhatsApp/SMS opt-in, YES/STOP keywords, sponsor sends"},
+        {"Tool": "badge_scan_vendor", "Records": len(sources["badge_scan_vendor"]["booth_scans"]),
+         "Contributes": "sponsor master + buyer profiles, prior-year booth scans with consent tick"},
+        {"Tool": "ops_slack", "Records": len(slack),
+         "Contributes": "hourly opt-out/spam rollups feeding the circuit breaker"},
+    ])
+    c1, c2, c3, c4 = st.columns(4)
+    c1.metric("Sources merged", len(counts))
+    c2.metric("Attendees", len(state.attendees))
+    c3.metric("Consent events", len(state.consent_events))
+    c4.metric("Valid sponsor consents", sum(cs.is_valid for cs in state.consent.values()))
+    st.dataframe(counts, hide_index=True, width="stretch")
+
+    st.markdown("#### Master Consent Ledger")
+    st.caption("Latest event per (attendee, sponsor) wins across all four tools that record consent. "
+               "Grants older than 365 days expire.")
+    st.dataframe(pd.DataFrame(ledger_rows(state)), hide_index=True, width="stretch")
+
+    with st.expander("Unified attendee view"):
+        st.dataframe(pd.DataFrame([{
+            "ID": a.attendee_id, "Name": a.name, "Role": a.role, "Company": a.company,
+            "Country": a.country, "General marketing opt-in": a.general_marketing_opt_in,
+            "Preferred channel": a.preferred_channel,
+            "Opted in on preferred channel": a.channel_opt_in.get(a.preferred_channel, False),
+            "Sponsor sends (7d)": state.sponsor_sends_7d.get(a.attendee_id, 0),
+            "Topics": ", ".join(a.topic_interests),
+        } for a in state.attendees.values()]), hide_index=True, width="stretch")
+
+    with st.expander("Raw consent event timeline (every grant/revoke from every tool)"):
+        st.dataframe(pd.DataFrame([{
+            "At": ev.at.strftime("%Y-%m-%d %H:%M"), "Attendee": ev.attendee_id,
+            "Sponsor": ev.sponsor_id, "Action": ev.action, "Source": ev.source, "Ref": ev.ref,
+        } for ev in state.consent_events]), hide_index=True, width="stretch")
+
+# ---------------------------------------------------------------- 2. gate + audit
+with tab_gate:
+    st.subheader("Deterministic Consent Gate")
+    st.code(
+        "allowed = breaker_ok and sponsor_in_rollout \\\n"
+        "      and sponsor_specific_consent == True \\\n"
+        "      and channel_opt_in == True \\\n"
+        f"      and weekly_sponsor_sends < {WEEKLY_SPONSOR_CAP}",
+        language="python",
+    )
+    sponsor_id = st.selectbox(
+        "Evaluate every attendee against sponsor",
+        list(state.sponsors),
+        format_func=lambda s: f"{state.sponsors[s]['name']} ({state.sponsors[s]['tier']})",
+    )
+    decisions = evaluate_sponsor(state, sponsor_id, breaker)
+    if st.button("Record this evaluation to the audit log"):
+        log_audit([d.as_audit_row() for d in decisions])
+
+    passed = sum(d.allowed for d in decisions)
+    c1, c2 = st.columns(2)
+    c1.metric("Passed", passed)
+    c2.metric("Blocked", len(decisions) - passed)
+
+    audit_df = pd.DataFrame([d.as_audit_row() for d in decisions])
+    st.dataframe(
+        audit_df.style.apply(
+            lambda row: ["background-color: rgba(46,160,67,0.18)" if row["allowed"]
+                         else "background-color: rgba(218,54,51,0.12)"] * len(row), axis=1),
+        hide_index=True, width="stretch",
+    )
+
+    st.markdown("#### Brief edge cases")
+    edge_cases = [
+        ("A002", "SP01", "General marketing opt-in, no sponsor consent", "BLOCK"),
+        ("A003", "SP02", "Granted in app, later revoked via WhatsApp STOP", "BLOCK"),
+        ("A004", "SP01", "Hit weekly sponsor frequency cap", "BLOCK"),
+        ("A001", "SP03", "International, prefers WhatsApp, valid sponsor consent", "PASS"),
+        ("A010", "SP02", "Consent from a 2025 booth scan (expired)", "BLOCK"),
+        ("A014", "SP01", "Consented to Sentinel, not Helix (consent is per sponsor)", "BLOCK"),
+        ("A017", "SP02", "Granted, revoked, then re-granted (latest wins)", "PASS"),
+    ]
+    st.dataframe(pd.DataFrame([{
+        "Case": desc, "Attendee": aid, "Sponsor": state.sponsors[sid]["name"],
+        "Expected": expected,
+        "Actual": "PASS" if (d := evaluate(state, aid, sid, breaker)).allowed else "BLOCK",
+        "Gate reason": d.reason,
+    } for aid, sid, desc, expected in edge_cases]), hide_index=True, width="stretch")
+    if breaker.tripped:
+        st.info("Breaker is tripped, so every case currently blocks. Reset it in the sidebar to see the per-rule results.")
+
+    st.markdown("#### Session audit log")
+    log = st.session_state.get("audit_log", [])
+    if log:
+        log_df = pd.DataFrame(log)
+        st.dataframe(log_df, hide_index=True, width="stretch")
+        st.download_button("Download audit log (CSV)", log_df.to_csv(index=False),
+                           "consent_gate_audit.csv", "text/csv")
+    else:
+        st.caption("Empty. Gate evaluations are appended here when recorded or when a match brief is generated.")
+
+# ---------------------------------------------------------------- 3. matchmaking
+with tab_match:
+    st.subheader("Platinum sponsor match brief")
+    platinum = [s for s, sp in state.sponsors.items() if sp["tier"] == "platinum"]
+    match_sponsor = st.selectbox("Sponsor", platinum,
+                                 format_func=lambda s: state.sponsors[s]["name"], key="match_sponsor")
+    sponsor = state.sponsors[match_sponsor]
+    st.caption("Target buyer: " + ", ".join(sponsor["target_buyer_profile"]["roles"])
+               + " · Topics: " + ", ".join(sponsor["target_buyer_profile"]["topics"]))
+
+    if breaker.tripped:
+        st.error("Sponsor outbound is halted. Matchmaking is disabled and the app has degraded to "
+                 "the static pull-only sponsor directory (see tab ④).")
+    elif st.button("Run gate → generate match brief", type="primary"):
+        gate = evaluate_sponsor(state, match_sponsor, breaker)
+        log_audit([d.as_audit_row() for d in gate])
+        with st.spinner("Matching consented attendees…"):
+            run = run_matchmaking(state, match_sponsor, gate, use_llm=use_llm)
+        st.session_state["last_run"] = (run, gate)
+
+    if (last := st.session_state.get("last_run")) and last[0].sponsor_id == match_sponsor and not breaker.tripped:
+        run, gate = last
+        passed = [d for d in gate if d.allowed]
+        c1, c2, c3 = st.columns(3)
+        c1.metric("Attendees evaluated by gate", len(gate))
+        c2.metric("Passed to matchmaker", len(passed))
+        c3.metric("Engine", {"llm": f"Claude · {MODEL}", "offline": "Offline scorer",
+                             "none": "No call"}[run.mode])
+        if run.note:
+            st.info(run.note)
+        if run.dropped_ids:
+            st.warning(f"Model returned ids not in the consented set; dropped: {run.dropped_ids}")
+
+        if run.matches:
+            # Names are joined back locally after matching; they were never sent to the model.
+            st.dataframe(pd.DataFrame([{
+                "Fit": m.fit_score,
+                "Attendee": state.attendees[m.attendee_id].name,
+                "Role": state.attendees[m.attendee_id].role,
+                "Company": state.attendees[m.attendee_id].company,
+                "Channel": state.attendees[m.attendee_id].preferred_channel,
+                "Why": m.rationale,
+                "Suggested opener (needs sponsor approval before send)": m.suggested_opener,
+            } for m in run.matches]), hide_index=True, width="stretch")
+
+        with st.expander("Exactly what the matchmaker saw (minimized: no names, emails or companies)"):
+            st.json(run.payload)
+        with st.expander(f"Blocked by gate before matching ({len(gate) - len(passed)})"):
+            st.dataframe(pd.DataFrame([{"Attendee": d.attendee_name, "Reason": d.reason}
+                                       for d in gate if not d.allowed]),
+                         hide_index=True, width="stretch")
+
+# ---------------------------------------------------------------- 4. rollback + safety
+with tab_ops:
+    st.subheader("Circuit breaker")
+    rollups = [{
+        "Window end (UTC)": m["ts"][11:16],
+        "Sent": m["metrics"]["sent"],
+        "Opt-outs": m["metrics"]["opt_outs"],
+        "Spam reports": m["metrics"]["spam_reports"],
+        "Rate %": round(100 * (m["metrics"]["opt_outs"] + m["metrics"]["spam_reports"]) / m["metrics"]["sent"], 2),
+    } for m in slack if m.get("metrics") and _ts(m["ts"]) <= _ts(replay_ts)]
+    roll_df = pd.DataFrame(rollups)
+    roll_df["Trip threshold %"] = OPT_OUT_TRIP_RATE * 100
+    st.line_chart(roll_df, x="Window end (UTC)", y=["Rate %", "Trip threshold %"])
+    st.dataframe(pd.DataFrame([{"Time": m["ts"][11:16], "User": m["user"], "Message": m["text"]}
+                               for m in slack if _ts(m["ts"]) <= _ts(replay_ts)]),
+                 hide_index=True, width="stretch")
+
+    st.subheader("Degraded mode: static pull-only sponsor directory")
+    st.caption("Shown in the mobile app when outbound is halted. Attendees browse; nothing is pushed.")
+    st.dataframe(pd.DataFrame([{"Sponsor": s["name"], "Tier": s["tier"], "Booth": s["booth"]}
+                               for s in state.sponsors.values()]), hide_index=True, width="stretch")
+
+    st.subheader("Safety alerts (outside the AI layer)")
+    st.caption("Human-written templates only. No model call, not affected by the sponsor kill switch, "
+               "fields restricted to enumerated venues and shelter points.")
+    template_id = st.selectbox("Template", list(safety_alerts.TEMPLATES))
+    if template_id == "severe_weather_shelter":
+        fields = {"shelter_point": st.selectbox("Shelter point", list(safety_alerts.SHELTER_POINTS))}
+    else:
+        fields = {
+            "session_title": st.text_input("Session title (from schedule system)", "Opening Keynote"),
+            "venue": st.selectbox("Venue", list(safety_alerts.VENUES)),
+            "room": st.text_input("Room", "Ballroom A"),
+        }
+    st.code(safety_alerts.render(template_id, **fields), language=None)

@@ -1,0 +1,35 @@
+{
+  "source": "email_platform",
+  "exported_at": "2026-11-20T09:00:00Z",
+  "subscribers": [
+    {"attendee_id": "A001", "unsubscribed": false, "promo_opens_90d": 2, "promo_sends_90d": 14},
+    {"attendee_id": "A002", "unsubscribed": false, "promo_opens_90d": 1, "promo_sends_90d": 14},
+    {"attendee_id": "A003", "unsubscribed": false, "promo_opens_90d": 0, "promo_sends_90d": 14},
+    {"attendee_id": "A004", "unsubscribed": false, "promo_opens_90d": 3, "promo_sends_90d": 14},
+    {"attendee_id": "A005", "unsubscribed": false, "promo_opens_90d": 0, "promo_sends_90d": 6},
+    {"attendee_id": "A006", "unsubscribed": true, "unsubscribed_at": "2026-10-28T12:00:00Z", "promo_opens_90d": 0, "promo_sends_90d": 9},
+    {"attendee_id": "A007", "unsubscribed": false, "promo_opens_90d": 2, "promo_sends_90d": 14},
+    {"attendee_id": "A008", "unsubscribed": false, "promo_opens_90d": 1, "promo_sends_90d": 6},
+    {"attendee_id": "A009", "unsubscribed": false, "promo_opens_90d": 0, "promo_sends_90d": 6},
+    {"attendee_id": "A010", "unsubscribed": false, "promo_opens_90d": 1, "promo_sends_90d": 14},
+    {"attendee_id": "A011", "unsubscribed": false, "promo_opens_90d": 4, "promo_sends_90d": 14},
+    {"attendee_id": "A012", "unsubscribed": false, "promo_opens_90d": 1, "promo_sends_90d": 14},
+    {"attendee_id": "A013", "unsubscribed": false, "promo_opens_90d": 2, "promo_sends_90d": 14},
+    {"attendee_id": "A014", "unsubscribed": false, "promo_opens_90d": 0, "promo_sends_90d": 14},
+    {"attendee_id": "A015", "unsubscribed": false, "promo_opens_90d": 2, "promo_sends_90d": 14},
+    {"attendee_id": "A016", "unsubscribed": false, "promo_opens_90d": 3, "promo_sends_90d": 6},
+    {"attendee_id": "A017", "unsubscribed": false, "promo_opens_90d": 1, "promo_sends_90d": 14},
+    {"attendee_id": "A018", "unsubscribed": false, "promo_opens_90d": 1, "promo_sends_90d": 14}
+  ],
+  "preference_center_events": [
+    {"event_id": "PC-8812", "attendee_id": "A006", "sponsor_id": "SP05", "action": "grant", "at": "2026-09-19T10:00:00Z"},
+    {"event_id": "PC-8840", "attendee_id": "A011", "sponsor_id": "SP04", "action": "grant", "at": "2026-10-09T15:20:00Z"},
+    {"event_id": "PC-8853", "attendee_id": "A008", "sponsor_id": "SP03", "action": "grant", "at": "2026-10-01T13:00:00Z"}
+  ],
+  "sponsor_sends": [
+    {"send_id": "EM-55120", "attendee_id": "A004", "sponsor_id": "SP01", "sent_at": "2026-11-16T15:00:00Z", "template": "sponsor_meeting_invite_v2"},
+    {"send_id": "EM-55187", "attendee_id": "A004", "sponsor_id": "SP05", "sent_at": "2026-11-19T15:00:00Z", "template": "sponsor_meeting_invite_v2"},
+    {"send_id": "EM-55203", "attendee_id": "A018", "sponsor_id": "SP01", "sent_at": "2026-11-18T15:00:00Z", "template": "sponsor_meeting_invite_v2"},
+    {"send_id": "EM-54011", "attendee_id": "A011", "sponsor_id": "SP04", "sent_at": "2026-11-06T15:00:00Z", "template": "sponsor_meeting_invite_v2"}
+  ]
+}
